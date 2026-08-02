@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="estados_brasil">
+        <item>Selecione</item>
+        <item>AC - Acre</item>
+        <item>AL - Alagoas</item>
+        <item>AP - Amapá</item>
+        <item>AM - Amazonas</item>
+        <item>BA - Bahia</item>
+        <item>CE - Ceará</item>
+        <item>DF - Distrito Federal</item>
+        <item>ES - Espírito Santo</item>
+        <item>GO - Goiás</item>
+        <item>MA - Maranhão</item>
+        <item>MT - Mato Grosso</item>
+        <item>MS - Mato Grosso do Sul</item>
+        <item>MG - Minas Gerais</item>
+        <item>PA - Pará</item>
+        <item>PB - Paraíba</item>
+        <item>PR - Paraná</item>
+        <item>PE - Pernambuco</item>
+        <item>PI - Piauí</item>
+        <item>RJ - Rio de Janeiro</item>
+        <item>RN - Rio Grande do Norte</item>
+        <item>RS - Rio Grande do Sul</item>
+        <item>RO - Rondônia</item>
+        <item>RR - Roraima</item>
+        <item>SC - Santa Catarina</item>
+        <item>SP - São Paulo</item>
+        <item>SE - Sergipe</item>
+        <item>TO - Tocantins</item>
+    </string-array>
+
+    <string-array name="cores_veiculo">
+        <item>Selecione</item>
+        <item>Branco</item>
+        <item>Preto</item>
+        <item>Prata</item>
+        <item>Cinza</item>
+        <item>Vermelho</item>
+        <item>Azul</item>
+        <item>Verde</item>
+        <item>Amarelo</item>
+        <item>Marrom</item>
+        <item>Bege</item>
+        <item>Dourado</item>
+        <item>Laranja</item>
+        <item>Roxo</item>
+        <item>Vinho</item>
+        <item>Outra</item>
+    </string-array>
+
+    <string-array name="tipos_motor">
+        <item>Selecione</item>
+        <item>Combustão</item>
+        <item>Elétrico</item>
+    </string-array>
+
+    <string-array name="tipos_pix">
+        <item>Selecione</item>
+        <item>CPF</item>
+        <item>CNPJ</item>
+        <item>Email</item>
+        <item>Telefone</item>
+        <item>Chave Aleatória</item>
+    </string-array>
+</resources>

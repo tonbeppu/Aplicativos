@@ -1,0 +1,283 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_primary"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:id="@+id/tvHeaderTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textSize="26sp"
+            android:textStyle="bold"
+            android:layout_marginTop="24dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Cadastro de Motorista"
+            android:textColor="@color/text_secondary"
+            android:textSize="16sp"
+            android:gravity="center"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="24dp" />
+
+        <ProgressBar
+            android:id="@+id/progressBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:indeterminateTint="@color/accent"
+            android:visibility="gone"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Nome Completo -->
+        <TextView style="@style/RegisterLabel" android:text="Nome Completo *" />
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/RegisterField">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etFullName"
+                style="@style/RegisterInput"
+                android:inputType="textPersonName|textCapWords" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Email -->
+        <TextView style="@style/RegisterLabel" android:text="Email *" />
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/RegisterField">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etEmail"
+                style="@style/RegisterInput"
+                android:inputType="textEmailAddress" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Senha -->
+        <TextView style="@style/RegisterLabel" android:text="Senha *" />
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/RegisterField"
+            app:endIconMode="password_toggle">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etPassword"
+                style="@style/RegisterInput"
+                android:inputType="textPassword" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Confirmar Senha -->
+        <TextView style="@style/RegisterLabel" android:text="Confirmar Senha *" />
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/RegisterField"
+            app:endIconMode="password_toggle">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etConfirmPassword"
+                style="@style/RegisterInput"
+                android:inputType="textPassword" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- CPF -->
+        <TextView style="@style/RegisterLabel" android:text="CPF *" />
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/RegisterField">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etCpf"
+                style="@style/RegisterInput"
+                android:hint="000.000.000-00"
+                android:inputType="number"
+                android:maxLength="14" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Data de Nascimento -->
+        <TextView style="@style/RegisterLabel" android:text="Data de Nascimento *" />
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/RegisterField">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etBirthDate"
+                style="@style/RegisterInput"
+                android:hint="dd/mm/aaaa"
+                android:inputType="number"
+                android:maxLength="10" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Telefone -->
+        <TextView style="@style/RegisterLabel" android:text="Telefone *" />
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/RegisterField">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etPhone"
+                style="@style/RegisterInput"
+                android:hint="(00) 00000-0000"
+                android:inputType="phone"
+                android:maxLength="15" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Estado -->
+        <TextView style="@style/RegisterLabel" android:text="Estado *" />
+        <Spinner
+            android:id="@+id/spState"
+            style="@style/RegisterSpinner" />
+
+        <!-- Cidade -->
+        <TextView style="@style/RegisterLabel" android:text="Cidade *" />
+        <Spinner
+            android:id="@+id/spCity"
+            style="@style/RegisterSpinner" />
+
+        <!-- Fabricante do Veículo -->
+        <TextView style="@style/RegisterLabel" android:text="Fabricante do Veículo *" />
+        <Spinner
+            android:id="@+id/spVehicleBrand"
+            style="@style/RegisterSpinner" />
+
+        <!-- Modelo do Veículo -->
+        <TextView style="@style/RegisterLabel" android:text="Modelo do Veículo *" />
+        <Spinner
+            android:id="@+id/spVehicleModel"
+            style="@style/RegisterSpinner" />
+
+        <!-- Ano -->
+        <TextView style="@style/RegisterLabel" android:text="Ano *" />
+        <Spinner
+            android:id="@+id/spVehicleYear"
+            style="@style/RegisterSpinner" />
+
+        <!-- Cor do Veículo -->
+        <TextView style="@style/RegisterLabel" android:text="Cor do Veículo *" />
+        <Spinner
+            android:id="@+id/spVehicleColor"
+            style="@style/RegisterSpinner" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tilVehicleColorOther"
+            style="@style/RegisterField"
+            android:visibility="gone">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etVehicleColorOther"
+                style="@style/RegisterInput"
+                android:hint="Qual cor?"
+                android:inputType="textCapSentences" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Placa -->
+        <TextView style="@style/RegisterLabel" android:text="Placa *" />
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/RegisterField">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etPlate"
+                style="@style/RegisterInput"
+                android:hint="ABC-1234 ou ABC-1D23"
+                android:inputType="textCapCharacters"
+                android:maxLength="8" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Tipo de Motor -->
+        <TextView style="@style/RegisterLabel" android:text="Tipo de Motor *" />
+        <Spinner
+            android:id="@+id/spMotorType"
+            style="@style/RegisterSpinner" />
+
+        <!-- Tipo Chave PIX -->
+        <TextView style="@style/RegisterLabel" android:text="Tipo Chave PIX *" />
+        <Spinner
+            android:id="@+id/spPixType"
+            style="@style/RegisterSpinner" />
+
+        <!-- Chave PIX -->
+        <TextView style="@style/RegisterLabel" android:text="Chave PIX *" />
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/RegisterField">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etPixKey"
+                style="@style/RegisterInput" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Foto de Perfil -->
+        <TextView style="@style/RegisterLabel" android:text="Foto de Perfil" />
+        <FrameLayout
+            android:id="@+id/photoPicker"
+            android:layout_width="match_parent"
+            android:layout_height="140dp"
+            android:background="@drawable/bg_photo_picker"
+            android:layout_marginBottom="20dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <LinearLayout
+                android:id="@+id/photoPlaceholder"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:orientation="vertical"
+                android:gravity="center">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="📷"
+                    android:textSize="28sp"
+                    android:gravity="center" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Tirar foto ou escolher da galeria"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    android:layout_marginTop="6dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Máximo 5MB"
+                    android:textColor="@color/text_tertiary"
+                    android:textSize="11sp"
+                    android:layout_marginTop="2dp" />
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/ivPhotoPreview"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:visibility="gone" />
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnVoltar"
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_weight="1"
+                android:text="Voltar"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                app:backgroundTint="@color/card_bg_secondary"
+                app:cornerRadius="12dp"
+                android:layout_marginEnd="8dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnCadastrar"
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_weight="1"
+                android:text="Cadastrar"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                app:backgroundTint="@color/accent"
+                app:cornerRadius="12dp"
+                android:layout_marginStart="8dp" />
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>
