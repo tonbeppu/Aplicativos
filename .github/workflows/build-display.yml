@@ -30,19 +30,6 @@ jobs:
         with:
           gradle-version: '8.5'
 
-      - name: Restaurar keystore de release
-        if: ${{ secrets.DISPLAY_KEYSTORE_BASE64 != '' }}
-        env:
-          KEYSTORE_BASE64: ${{ secrets.DISPLAY_KEYSTORE_BASE64 }}
-        run: |
-          echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
-          cat > keystore.properties << PROPS
-          storeFile=../release.keystore
-          storePassword=${{ secrets.DISPLAY_KEYSTORE_PASSWORD }}
-          keyAlias=${{ secrets.DISPLAY_KEY_ALIAS }}
-          keyPassword=${{ secrets.DISPLAY_KEY_PASSWORD }}
-          PROPS
-
       - name: Build APK (release)
         run: gradle assembleRelease --no-daemon
 
