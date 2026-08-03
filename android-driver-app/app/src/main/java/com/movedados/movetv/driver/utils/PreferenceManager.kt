@@ -31,6 +31,8 @@ class PreferenceManager(context: Context) {
         private const val KEY_LAST_SAVED_LAT = "last_saved_lat"
         private const val KEY_LAST_SAVED_LNG = "last_saved_lng"
         private const val KEY_LAST_SAVED_AT = "last_saved_at"
+        private const val KEY_BATTERY_GUIDE_SHOWN = "battery_guide_shown"
+        private const val KEY_LAST_FLUSH_STATUS = "last_flush_status"
     }
 
     fun saveAuthData(accessToken: String, refreshToken: String, userId: String, email: String) {
@@ -172,6 +174,15 @@ class PreferenceManager(context: Context) {
     fun getLastSavedLat(): Float? = if (prefs.contains(KEY_LAST_SAVED_LAT)) prefs.getFloat(KEY_LAST_SAVED_LAT, 0f) else null
     fun getLastSavedLng(): Float? = if (prefs.contains(KEY_LAST_SAVED_LNG)) prefs.getFloat(KEY_LAST_SAVED_LNG, 0f) else null
     fun getLastSavedAt(): Long = prefs.getLong(KEY_LAST_SAVED_AT, 0L)
+
+    fun hasSeenBatteryGuide(): Boolean = prefs.getBoolean(KEY_BATTERY_GUIDE_SHOWN, false)
+    fun setBatteryGuideShown() { prefs.edit().putBoolean(KEY_BATTERY_GUIDE_SHOWN, true).apply() }
+
+    fun setLastFlushStatus(status: String) {
+        val timestamp = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(java.util.Date())
+        prefs.edit().putString(KEY_LAST_FLUSH_STATUS, "$timestamp — $status").apply()
+    }
+    fun getLastFlushStatus(): String? = prefs.getString(KEY_LAST_FLUSH_STATUS, null)
 
     fun clearAll() {
         // Preserva a preferência "lembrar-me" mesmo ao fazer logout,
