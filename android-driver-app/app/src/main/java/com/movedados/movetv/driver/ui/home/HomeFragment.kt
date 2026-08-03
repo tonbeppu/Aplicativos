@@ -2,6 +2,9 @@ package com.movedados.movetv.driver.ui.home
 
 import android.Manifest
 import android.content.Intent
+import android.net.Uri
+import android.os.PowerManager
+import android.provider.Settings
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Handler
@@ -10,6 +13,8 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.Toast
+import com.google.android.material.button.MaterialButton
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -45,7 +50,7 @@ class HomeFragment : Fragment() {
     private val handler = Handler(Looper.getMainLooper())
     private val ticker = object : Runnable {
         override fun run() {
-            view?.let { updateStats(it) }
+            view?.let { updateStats(it); updateSyncStatus(it) }
             handler.postDelayed(this, 1000)
         }
     }
@@ -113,6 +118,9 @@ class HomeFragment : Fragment() {
                         requireContext(),
                         Intent(requireContext(), LocationService::class.java)
                     )
+                    if (!prefs.hasSeenBatteryGuide()) {
+                        showBatteryGuide()
+                    }
                 } else {
                     ActivityCompat.requestPermissions(
                         requireActivity(),
@@ -129,6 +137,72 @@ class HomeFragment : Fragment() {
             }
             updateMonitoringUi(view)
         }
+    }
+
+    /** Guia de configuração exibido uma única vez, na primeira ativação do monitoramento.
+     *  O Android não permite que nenhum app desative essas proteções sozinho (é assim de
+     *  propósito, por segurança) — mas dá para levar o motorista direto à tela certa, em vez
+     *  dele precisar caçar o menu escondido sozinho. */
+    private fun showBatteryGuide() {
+        val ctx = requireContext()
+        val pkg = ctx.packageName
+
+        val message = TextView(ctx).apply {
+            text = "Para o monitoramento GPS funcionar de forma confiável, mesmo com a tela " +
+                "bloqueada, alguns celulares (principalmente Samsung e Xiaomi) exigem 2 ajustes rápidos:\n\n" +
+                "1. Permitir que o app rode sem restrição de bateria\n" +
+                "2. Impedir que o sistema \"hiberne\" o app automaticamente\n\n" +
+                "Toque nos botões abaixo — cada um abre a tela certa, você só precisa confirmar."
+            setTextColor(getColor(R.color.text_primary))
+            textSize = 14f
+            setPadding(dp(8), dp(8), dp(8), dp(16))
+        }
+
+        val btnBattery = MaterialButton(ctx).apply {
+            text = "1. Ignorar otimização de bateria"
+            setOnClickListener {
+                try {
+                    val pm = ctx.getSystemService(android.content.Context.POWER_SERVICE) as PowerManager
+                    if (!pm.isIgnoringBatteryOptimizations(pkg)) {
+                        startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$pkg")))
+                    } else {
+                        Toast.makeText(ctx, "Já está configurado ✓", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$pkg")))
+                }
+            }
+        }
+
+        val btnAutoRevoke = MaterialButton(ctx).apply {
+            text = "2. Impedir hibernação automática"
+            setOnClickListener {
+                try {
+                    startActivity(Intent(Intent.ACTION_AUTO_REVOKE_PERMISSIONS, Uri.parse("package:$pkg")))
+                } catch (e: Exception) {
+                    startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$pkg")))
+                }
+            }
+        }
+
+        val container = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(8), dp(16), dp(0))
+            addView(message)
+            addView(btnBattery, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(8) })
+            addView(btnAutoRevoke, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        }
+
+        android.app.AlertDialog.Builder(ctx)
+            .setTitle("Configuração recomendada")
+            .setView(container)
+            .setPositiveButton("Concluir") { d, _ ->
+                prefs.setBatteryGuideShown()
+                d.dismiss()
+            }
+            .setCancelable(true)
+            .setOnDismissListener { prefs.setBatteryGuideShown() }
+            .show()
     }
 
     private fun hasLocationPermission(): Boolean =
@@ -158,6 +232,17 @@ class HomeFragment : Fragment() {
             hint.text = "Deslize para ativar o monitoramento"
         }
         updateStats(view)
+    }
+
+    private fun updateSyncStatus(view: View) {
+        val tv = view.findViewById<TextView>(R.id.tvLastSync)
+        val status = prefs.getLastFlushStatus()
+        if (status != null) {
+            tv.text = "Última sincronização: $status"
+            tv.visibility = View.VISIBLE
+        } else {
+            tv.visibility = View.GONE
+        }
     }
 
     private fun updateStats(view: View) {
