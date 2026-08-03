@@ -82,7 +82,9 @@ class LocationService : LifecycleService() {
         setupLocationCallback()
         startLocationUpdates()
 
-        handler.postDelayed(flushLoop, FLUSH_INTERVAL_MS)
+        // Primeiro envio bem mais rápido (45s), só para o motorista já ver a confirmação
+        // logo no início — os envios seguintes continuam no ritmo normal de 3 em 3 minutos.
+        handler.postDelayed(flushLoop, 45_000L)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -150,8 +152,14 @@ class LocationService : LifecycleService() {
         val timeSinceLastSave = System.currentTimeMillis() - lastSavedAt
 
         val hasMoved = if (lastLat != null && lastLng != null) {
-            val distanceKm = supabase.haversineKm(lastLat.toDouble(), lastLng.toDouble(), location.latitude, location.longitude)
-            (distanceKm * 1000) >= MIN_DISTANCE_METERS
+            val distanceMeters = supabase.haversineKm(lastLat.toDouble(), lastLng.toDouble(), location.latitude, location.longitude) * 1000
+            // O limiar se adapta à precisão do GPS no momento: com sinal ruim (accuracy alto),
+            // exige um deslocamento maior para não confundir "tremor" do GPS com movimento real.
+            // Limita a 50m mesmo se a precisão do GPS estiver ruim (ex: celular no bolso) —
+            // sem esse teto, sinal fraco fazia o filtro exigir mais deslocamento do que o real,
+            // descartando pontos válidos durante o trajeto.
+            val effectiveThreshold = maxOf(MIN_DISTANCE_METERS, location.accuracy.toDouble()).coerceAtMost(50.0)
+            distanceMeters >= effectiveThreshold
         } else {
             true // primeiro ponto da sessão: sempre salva
         }
@@ -192,16 +200,24 @@ class LocationService : LifecycleService() {
                 if (sessionId == null) {
                     val campaignId = supabase.fetchDriverCampaigns(driverId).getOrNull()
                         ?.firstOrNull { it.status == "active" }?.id
-                    sessionId = supabase.startMonitoringSession(driverId, campaignId).getOrNull()
+                    val sessionResult = supabase.startMonitoringSession(driverId, campaignId)
+                    sessionId = sessionResult.getOrNull()
                     sessionId?.let { prefs.setSessionId(it) }
-                }
-
-                if (sessionId != null) {
-                    val result = supabase.insertGpsLogsBatch(driverId, sessionId, queued)
-                    if (result.isSuccess) {
-                        prefs.clearGpsQueue()
+                    if (sessionId == null) {
+                        prefs.setLastFlushStatus("Falha ao criar sessão: ${sessionResult.exceptionOrNull()?.message}")
+                        return@launch
                     }
                 }
+
+                val result = supabase.insertGpsLogsBatch(driverId, sessionId, queued)
+                if (result.isSuccess) {
+                    prefs.clearGpsQueue()
+                    prefs.setLastFlushStatus("OK — ${queued.size} pontos enviados")
+                } else {
+                    prefs.setLastFlushStatus("Falha: ${result.exceptionOrNull()?.message}")
+                }
+            } catch (e: Exception) {
+                prefs.setLastFlushStatus("Exceção: ${e.message}")
             } finally {
                 try { wakeLock?.let { if (it.isHeld) it.release() } } catch (_: Exception) { }
             }
