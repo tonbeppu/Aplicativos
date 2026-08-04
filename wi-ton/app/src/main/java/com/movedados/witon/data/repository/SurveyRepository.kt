@@ -71,6 +71,9 @@ class SurveyRepository(private val dao: SurveyDao) {
 
     suspend fun getSurvey(localId: String): SurveyEntity? = dao.getSurvey(localId)
 
+    suspend fun getPoints(surveyLocalId: String): List<SurveyPointEntity> =
+        dao.pointsOf(surveyLocalId)
+
     /**
      * Envia a leitura completa ao Supabase e fecha o RPC finish_survey, que
      * consolida min/max/avg de RSSI no banco. So chamada explicitamente pelo
