@@ -4,7 +4,7 @@
 # Regra critica: ksp = "<versao do kotlin>-<versao do ksp>".
 # ---------------------------------------------------------------
 [versions]
-agp                = "8.7.3"
+agp                = "8.11.1"
 kotlin             = "2.0.21"
 ksp                = "2.0.21-1.0.28"
 coreKtx            = "1.15.0"
