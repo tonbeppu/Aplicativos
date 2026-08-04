@@ -21,20 +21,28 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.ar.core.ArCoreApk
 import com.google.ar.core.Config
+import com.google.ar.core.exceptions.UnavailableDeviceNotCompatibleException
+import com.google.ar.core.exceptions.UnavailableUserDeclinedInstallationException
 import com.movedados.witon.ui.components.StatusBadge
 import com.movedados.witon.ui.theme.Slate900
 import com.movedados.witon.ui.theme.StatusOrange
@@ -66,37 +74,63 @@ fun ArCaptureScreen(
         if (!hasCameraPermission) launcher.launch(Manifest.permission.CAMERA)
     }
 
+    // O ARCore em si ("Google Play Services for AR") pode nao estar instalado —
+    // isso e diferente de nao ter permissao de camera. O manifest declara
+    // com.google.ar.core como "optional" de proposito, para o app instalar
+    // tambem em aparelhos sem suporte a AR — por isso a instalacao precisa
+    // ser pedida aqui, na hora que o usuario tenta captar.
+    var arCoreState by remember { mutableStateOf<ArCoreGateState>(ArCoreGateState.Checking) }
+    var installRequested by rememberSaveable { mutableStateOf(false) }
+    // So para diagnostico: mostra o valor cru que o ArCoreApk devolveu, sem
+    // interpretacao — remover depois que o fluxo de instalacao estiver confiavel.
+    var lastRawAvailability by remember { mutableStateOf<String?>(null) }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                arCoreState = checkArCoreAvailability(context, installRequested,
+                    onInstallRequested = { installRequested = true },
+                    onAvailabilityChecked = { lastRawAvailability = it }
+                )
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(Unit) {
+        arCoreState = checkArCoreAvailability(context, installRequested,
+            onInstallRequested = { installRequested = true },
+            onAvailabilityChecked = { lastRawAvailability = it }
+        )
+    }
+
     val state by vm.state.collectAsState()
     LaunchedEffect(state.finished) {
         state.survey?.let { if (state.finished) onFinished(it.localId) }
     }
-    LaunchedEffect(Unit) {
-        vm.start(surveyName)
+    LaunchedEffect(arCoreState) {
+        if (arCoreState is ArCoreGateState.Ready) {
+            vm.start(surveyName)
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Slate900)) {
-        if (state.error != null) {
-            Box(Modifier.fillMaxSize(), Alignment.Center) {
-                Text(
+        when (val gate = arCoreState) {
+            is ArCoreGateState.Unsupported -> ArGateMessage(gate.message)
+            ArCoreGateState.Checking, ArCoreGateState.InstallRequested ->
+                ArGateMessage("Preparando a realidade aumentada...")
+            ArCoreGateState.Ready -> when {
+                state.error != null -> ArGateMessage(
                     "Nao foi possivel iniciar a realidade aumentada:\n${state.error}\n\n" +
-                    "Verifique se o Google Play Services for AR esta instalado e atualizado.",
-                    color = Color.White,
-                    modifier = Modifier.padding(32.dp)
+                    "Verifique se o Google Play Services for AR esta instalado e atualizado."
                 )
-            }
-        } else if (hasCameraPermission) {
-            ArCaptureViewport(vm)
-        } else {
-            Box(Modifier.fillMaxSize(), Alignment.Center) {
-                Text(
-                    "A camera e necessaria para a captura em realidade aumentada.",
-                    color = Color.White,
-                    modifier = Modifier.padding(32.dp)
-                )
+                hasCameraPermission -> ArCaptureViewport(vm)
+                else -> ArGateMessage("A camera e necessaria para a captura em realidade aumentada.")
             }
         }
 
-        if (state.error == null) {
+        if (arCoreState is ArCoreGateState.Ready && state.error == null) {
             CaptureHud(
                 pointsCount = state.pointsCount,
                 currentRssi = state.currentRssi,
@@ -104,6 +138,93 @@ fun ArCaptureScreen(
                 trackingMessage = state.trackingMessage,
                 onStop = { vm.stop() }
             )
+        }
+
+        // Badge de diagnostico — sempre visivel, independente do estado da tela.
+        lastRawAvailability?.let { raw ->
+            Box(
+                Modifier
+                    .padding(8.dp)
+                    .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(6.dp))
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Text("AR: $raw", color = Color.Yellow, style = MaterialTheme.typography.labelSmall)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ArGateMessage(text: String) {
+    Box(Modifier.fillMaxSize(), Alignment.Center) {
+        Text(text, color = Color.White, modifier = Modifier.padding(32.dp))
+    }
+}
+
+private sealed interface ArCoreGateState {
+    data object Checking : ArCoreGateState
+    data object InstallRequested : ArCoreGateState
+    data object Ready : ArCoreGateState
+    data class Unsupported(val message: String) : ArCoreGateState
+}
+
+/**
+ * Confere se o ARCore esta instalado e, se nao estiver, dispara o fluxo
+ * oficial de instalacao via Play Store (ArCoreApk.requestInstall). Esse
+ * fluxo e assincrono: o Play Store abre, o usuario instala, o Android volta
+ * pra esta Activity via ON_RESUME — e por isso o resultado e checado de novo
+ * no LifecycleEventObserver, nao so na primeira chamada.
+ */
+private fun checkArCoreAvailability(
+    context: android.content.Context,
+    installRequested: Boolean,
+    onInstallRequested: () -> Unit,
+    onAvailabilityChecked: (String) -> Unit
+): ArCoreGateState {
+    val availability = ArCoreApk.getInstance().checkAvailability(context)
+    onAvailabilityChecked(availability.name)
+    return when {
+        availability == ArCoreApk.Availability.SUPPORTED_INSTALLED -> ArCoreGateState.Ready
+
+        availability == ArCoreApk.Availability.UNSUPPORTED_DEVICE_NOT_CAPABLE ->
+            ArCoreGateState.Unsupported(
+                "Este aparelho nao suporta realidade aumentada (ARCore). " +
+                "A captura AR nao esta disponivel neste dispositivo."
+            )
+
+        else -> {
+            // SUPPORTED_NOT_INSTALLED, SUPPORTED_APK_TOO_OLD ou UNKNOWN_*
+            val activity = context as? android.app.Activity
+            if (activity == null) {
+                ArCoreGateState.Unsupported("Nao foi possivel verificar o suporte a AR.")
+            } else {
+                try {
+                    when (val status = ArCoreApk.getInstance().requestInstall(activity, !installRequested)) {
+                        ArCoreApk.InstallStatus.INSTALLED -> {
+                            onAvailabilityChecked("${availability.name} -> requestInstall=$status")
+                            ArCoreGateState.Ready
+                        }
+                        ArCoreApk.InstallStatus.INSTALL_REQUESTED -> {
+                            onAvailabilityChecked("${availability.name} -> requestInstall=$status")
+                            onInstallRequested()
+                            ArCoreGateState.InstallRequested
+                        }
+                    }
+                } catch (e: UnavailableDeviceNotCompatibleException) {
+                    ArCoreGateState.Unsupported(
+                        "Este aparelho nao suporta realidade aumentada (ARCore)."
+                    )
+                } catch (e: UnavailableUserDeclinedInstallationException) {
+                    ArCoreGateState.Unsupported(
+                        "A instalacao do Google Play Services for AR foi recusada. " +
+                        "Ela e obrigatoria para a captura em realidade aumentada."
+                    )
+                } catch (e: Exception) {
+                    ArCoreGateState.Unsupported(
+                        "Erro ao verificar o ARCore: ${e::class.simpleName ?: e.message ?: "desconhecido"}"
+                    )
+                }
+            }
         }
     }
 }
@@ -126,7 +247,12 @@ private fun ArCaptureViewport(vm: ArCaptureViewModel) {
         depthMode = Config.DepthMode.AUTOMATIC,
         planeFindingMode = Config.PlaneFindingMode.HORIZONTAL,
         onSessionFailed = { exception ->
-            vm.onSessionFailed(exception.message ?: "Erro desconhecido ao iniciar o ARCore")
+            // exception::class.simpleName pode vir null para certos tipos internos —
+            // javaClass.name e garantido nao-nulo e da o nome completo da classe,
+            // que e o minimo necessario pra saber QUAL excecao o ARCore lancou.
+            val detail = exception.message?.let { "${exception.javaClass.name}: $it" }
+                ?: exception.javaClass.name
+            vm.onSessionFailed(detail)
         },
         onSessionUpdated = { session, frame -> vm.onFrame(session, frame) }
     ) {
