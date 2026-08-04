@@ -244,7 +244,6 @@ private fun ArCaptureViewport(vm: ArCaptureViewModel) {
     ARSceneView(
         modifier = Modifier.fillMaxSize(),
         planeRenderer = true,
-        depthMode = Config.DepthMode.AUTOMATIC,
         planeFindingMode = Config.PlaneFindingMode.HORIZONTAL,
         onSessionFailed = { exception ->
             // exception::class.simpleName pode vir null para certos tipos internos —
