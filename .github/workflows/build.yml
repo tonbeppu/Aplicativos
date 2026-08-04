@@ -3,6 +3,7 @@ name: Build APK e AAB
 on:
   push:
     branches: [ main ]
+    paths: [ 'android-driver-app/**', '.github/workflows/build.yml' ]
   workflow_dispatch:
 
 defaults:

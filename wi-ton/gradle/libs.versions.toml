@@ -1,0 +1,66 @@
+# ---------------------------------------------------------------
+# Versoes fixadas em um conjunto conhecido e compativel entre si.
+# O Android Studio vai sugerir upgrades: suba UMA de cada vez.
+# Regra critica: ksp = "<versao do kotlin>-<versao do ksp>".
+# ---------------------------------------------------------------
+[versions]
+agp                = "8.7.3"
+kotlin             = "2.0.21"
+ksp                = "2.0.21-1.0.28"
+coreKtx            = "1.15.0"
+lifecycle          = "2.8.7"
+activityCompose    = "1.9.3"
+composeBom         = "2024.12.01"
+navigation         = "2.8.5"
+room               = "2.6.1"
+coroutines         = "1.9.0"
+serialization      = "1.7.3"
+material           = "1.12.0"
+ktor               = "3.0.3"
+supabase           = "3.4.1"
+# TODO(sprint 3): confirme a versao atual do SceneView antes de habilitar a dependencia
+sceneview          = "2.3.0"
+junit              = "4.13.2"
+androidxJunit      = "1.2.1"
+
+[libraries]
+androidx-core-ktx            = { group = "androidx.core",      name = "core-ktx",                    version.ref = "coreKtx" }
+androidx-lifecycle-runtime   = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx",       version.ref = "lifecycle" }
+androidx-lifecycle-viewmodel = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+androidx-activity-compose    = { group = "androidx.activity",  name = "activity-compose",            version.ref = "activityCompose" }
+androidx-navigation-compose  = { group = "androidx.navigation", name = "navigation-compose",         version.ref = "navigation" }
+
+compose-bom                = { group = "androidx.compose",           name = "compose-bom", version.ref = "composeBom" }
+compose-ui                 = { group = "androidx.compose.ui",        name = "ui" }
+compose-ui-graphics        = { group = "androidx.compose.ui",        name = "ui-graphics" }
+compose-ui-tooling         = { group = "androidx.compose.ui",        name = "ui-tooling" }
+compose-ui-tooling-preview = { group = "androidx.compose.ui",        name = "ui-tooling-preview" }
+compose-material3          = { group = "androidx.compose.material3", name = "material3" }
+compose-material-icons     = { group = "androidx.compose.material",  name = "material-icons-extended" }
+
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+
+room-runtime  = { group = "androidx.room", name = "room-runtime",  version.ref = "room" }
+room-ktx      = { group = "androidx.room", name = "room-ktx",      version.ref = "room" }
+room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+
+kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
+
+supabase-bom        = { group = "io.github.jan-tennert.supabase", name = "bom", version.ref = "supabase" }
+supabase-auth       = { group = "io.github.jan-tennert.supabase", name = "auth-kt" }
+supabase-postgrest  = { group = "io.github.jan-tennert.supabase", name = "postgrest-kt" }
+supabase-storage    = { group = "io.github.jan-tennert.supabase", name = "storage-kt" }
+ktor-client-android = { group = "io.ktor", name = "ktor-client-android", version.ref = "ktor" }
+
+sceneview-ar = { group = "io.github.sceneview", name = "arsceneview", version.ref = "sceneview" }
+
+junit          = { group = "junit",            name = "junit", version.ref = "junit" }
+androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxJunit" }
+
+[plugins]
+android-application  = { id = "com.android.application",                   version.ref = "agp" }
+kotlin-android       = { id = "org.jetbrains.kotlin.android",              version.ref = "kotlin" }
+kotlin-compose       = { id = "org.jetbrains.kotlin.plugin.compose",       version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+ksp                  = { id = "com.google.devtools.ksp",                   version.ref = "ksp" }

@@ -1,0 +1,5 @@
+# Copie para local.properties e preencha. local.properties NAO vai pro git.
+sdk.dir=/caminho/para/o/Android/Sdk
+
+SUPABASE_URL=https://ylysgozabadglznclmpn.supabase.co
+SUPABASE_ANON_KEY=cole_aqui_a_anon_key

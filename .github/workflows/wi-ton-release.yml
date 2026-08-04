@@ -1,0 +1,64 @@
+# Fica em <raiz-do-repo>/.github/workflows/ (ver nota em wi-ton-ci.yml).
+# Dispara ao criar uma tag: git tag v0.1.0 && git push origin v0.1.0
+
+name: Wi Ton - Release
+
+on:
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+env:
+  PROJECT_DIR: wi-ton
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Gradle (com cache)
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          build-root-directory: ${{ env.PROJECT_DIR }}
+
+      - name: Restaurar keystore
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > witon-release.jks
+          # confere que decodificou algo plausivel antes de gastar o build
+          test -s witon-release.jks
+
+      - name: Build assinado (APK + AAB)
+        working-directory: ${{ env.PROJECT_DIR }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          WITON_KEYSTORE_FILE: ${{ github.workspace }}/${{ env.PROJECT_DIR }}/witon-release.jks
+          WITON_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          WITON_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          WITON_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew assembleRelease bundleRelease --no-daemon --stacktrace
+
+      - name: Apagar keystore do runner
+        if: always()
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: rm -f witon-release.jks
+
+      - name: Anexar artefatos a Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ env.PROJECT_DIR }}/app/build/outputs/apk/release/*.apk
+            ${{ env.PROJECT_DIR }}/app/build/outputs/bundle/release/*.aab
+          generate_release_notes: true

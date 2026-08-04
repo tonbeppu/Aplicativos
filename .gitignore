@@ -1,0 +1,5 @@
+
+# nunca versionar chaves de assinatura
+*.keystore
+*.jks
+*.base64

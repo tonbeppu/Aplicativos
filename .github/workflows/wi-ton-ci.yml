@@ -1,0 +1,71 @@
+# Este arquivo tem de ficar em <raiz-do-repo>/.github/workflows/.
+# O GitHub ignora workflows dentro de subpastas de projeto.
+# Repositorio: Aplicativos — o projeto vive em /wi-ton, ao lado de android-driver-app.
+
+name: Wi Ton - CI
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'wi-ton/**', '.github/workflows/wi-ton-*.yml' ]
+  pull_request:
+    branches: [ main ]
+    paths: [ 'wi-ton/**' ]
+  workflow_dispatch:
+
+env:
+  # Use "." se o projeto estiver na raiz do repositorio.
+  PROJECT_DIR: wi-ton
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Gradle (com cache)
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          build-root-directory: ${{ env.PROJECT_DIR }}
+
+      - name: Credenciais do Supabase
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" > local.properties
+          echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> local.properties
+
+      - name: Build debug
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Testes unitarios
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: ./gradlew testDebugUnitTest --no-daemon
+
+      - name: Lint
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: ./gradlew lintDebug --no-daemon
+        continue-on-error: true
+
+      - name: Publicar APK de debug
+        uses: actions/upload-artifact@v4
+        with:
+          name: witon-debug-apk
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publicar relatorios de teste
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: witon-test-reports
+          path: ${{ env.PROJECT_DIR }}/app/build/reports/

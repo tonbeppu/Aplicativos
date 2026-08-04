@@ -1,0 +1,17 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+*.jks
+*.keystore
+!debug.keystore
+
+# o wrapper DEVE ser versionado — sem ele o CI nao roda
+!gradle/wrapper/gradle-wrapper.jar
+/app/release/
