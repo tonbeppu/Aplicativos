@@ -245,7 +245,15 @@ private fun ArCaptureViewport(vm: ArCaptureViewModel) {
     ARSceneView(
         modifier = Modifier.fillMaxSize(),
         planeRenderer = true,
+        // SEM depthMode: nao usamos dados de profundidade em nada (so pose da
+        // camera + deteccao de plano pro piso). Pedir AUTOMATIC sem sensor de
+        // profundidade no aparelho e o que estava causando o
+        // UnsupportedConfigurationException — nem todo aparelho tem esse sensor.
         planeFindingMode = Config.PlaneFindingMode.HORIZONTAL,
+        // Explicito por seguranca (AUTO ja e o padrao da lib) — autofoco e
+        // essencial pra ler bem andando por ambientes com pouca luz ou
+        // superficies lisas (parede/chao sem textura).
+        focusMode = Config.FocusMode.AUTO,
         onSessionFailed = { exception ->
             // exception::class.simpleName pode vir null para certos tipos internos —
             // javaClass.name e garantido nao-nulo e da o nome completo da classe,

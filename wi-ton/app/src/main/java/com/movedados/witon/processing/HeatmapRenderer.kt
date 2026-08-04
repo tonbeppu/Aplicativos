@@ -22,7 +22,13 @@ import kotlin.math.pow
  */
 object HeatmapRenderer {
 
-    private const val CELL_SIZE_M = 0.10f      // 10 cm por celula
+    // Em vez de celula de tamanho fixo, o tamanho se adapta a area percorrida:
+    // uma leitura curta (poucos metros) ganha celulas bem menores, senao a
+    // grade final fica minuscula e o Android estica isso em blocos gigantes
+    // sem detalhe nenhum — foi exatamente o bug visto em leituras curtas.
+    private const val TARGET_CELLS_LONGER_AXIS = 300
+    private const val MIN_CELL_SIZE_M = 0.02f  // 2 cm — piso pra nao super-refinar 1-2 pontos
+    private const val MAX_CELL_SIZE_M = 0.15f  // 15 cm — teto pra areas muito grandes
     private const val SEARCH_RADIUS_M = 3.0f   // raio de busca do IDW
     private const val POWER = 2.0              // expoente do IDW (peso ~ 1/d^2)
     private const val MARGIN_M = 0.5f          // margem ao redor dos pontos extremos
@@ -52,20 +58,23 @@ object HeatmapRenderer {
         val minZ = points.minOf { it.z } - MARGIN_M
         val maxZ = points.maxOf { it.z } + MARGIN_M
 
-        val widthCells = min(MAX_GRID_CELLS, max(1, ceil((maxX - minX) / CELL_SIZE_M).toInt()))
-        val heightCells = min(MAX_GRID_CELLS, max(1, ceil((maxZ - minZ) / CELL_SIZE_M).toInt()))
+        val span = max(maxX - minX, maxZ - minZ)
+        val cellSize = (span / TARGET_CELLS_LONGER_AXIS).coerceIn(MIN_CELL_SIZE_M, MAX_CELL_SIZE_M)
+
+        val widthCells = min(MAX_GRID_CELLS, max(1, ceil((maxX - minX) / cellSize).toInt()))
+        val heightCells = min(MAX_GRID_CELLS, max(1, ceil((maxZ - minZ) / cellSize).toInt()))
 
         val bitmap = Bitmap.createBitmap(widthCells, heightCells, Bitmap.Config.ARGB_8888)
 
         for (row in 0 until heightCells) {
-            val z = minZ + row * CELL_SIZE_M
+            val z = minZ + row * cellSize
             for (col in 0 until widthCells) {
-                val x = minX + col * CELL_SIZE_M
+                val x = minX + col * cellSize
                 bitmap.setPixel(col, row, interpolate(x, z, points))
             }
         }
 
-        return Result(bitmap, minX, minZ, CELL_SIZE_M, widthCells, heightCells)
+        return Result(bitmap, minX, minZ, cellSize, widthCells, heightCells)
     }
 
     private fun interpolate(x: Float, z: Float, points: List<SurveyPointEntity>): Int {
