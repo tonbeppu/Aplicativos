@@ -5,8 +5,8 @@
 # ---------------------------------------------------------------
 [versions]
 agp                = "8.11.1"
-kotlin             = "2.2.20"
-ksp                = "2.2.20-2.0.4"
+kotlin             = "2.0.21"
+ksp                = "2.0.21-1.0.28"
 coreKtx            = "1.15.0"
 lifecycle          = "2.8.7"
 activityCompose    = "1.9.3"
@@ -18,8 +18,7 @@ serialization      = "1.7.3"
 material           = "1.12.0"
 ktor               = "3.0.3"
 supabase           = "3.4.1"
-# TODO(sprint 3): confirme a versao atual do SceneView antes de habilitar a dependencia
-sceneview          = "2.3.0"
+sceneview          = "4.26.0"
 junit              = "4.13.2"
 androidxJunit      = "1.2.1"
 

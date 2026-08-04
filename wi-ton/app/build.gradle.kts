@@ -109,8 +109,8 @@ dependencies {
     implementation(libs.supabase.storage)
     implementation(libs.ktor.client.android)
 
-    // Sprint 3 — realidade aumentada. Confirme a versao no catalogo antes de habilitar.
-    // implementation(libs.sceneview.ar)
+    // Realidade aumentada — ARCore + Filament via SceneView (Compose-native)
+    implementation(libs.sceneview.ar)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

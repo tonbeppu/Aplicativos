@@ -35,7 +35,9 @@ object RssiScale {
         else        -> SignalQuality.RUIM
     }
 
-    fun color(rssi: Int): Color = when (quality(rssi)) {
+    fun color(rssi: Int): Color = colorFor(quality(rssi))
+
+    fun colorFor(quality: SignalQuality): Color = when (quality) {
         SignalQuality.EXCELENTE -> StatusGreen
         SignalQuality.BOA       -> StatusLime
         SignalQuality.ACEITAVEL -> StatusYellow
