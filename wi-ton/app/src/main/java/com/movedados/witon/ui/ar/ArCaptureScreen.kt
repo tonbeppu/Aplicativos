@@ -25,6 +25,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -262,11 +263,13 @@ private fun ArCaptureViewport(vm: ArCaptureViewModel) {
         }
 
         markers.forEach { marker ->
-            AnchorNode(anchor = marker.anchor) {
-                SphereNode(
-                    radius = 0.06f,
-                    materialInstance = qualityMaterials[marker.quality]
-                )
+            key(marker.anchor) {
+                AnchorNode(anchor = marker.anchor) {
+                    SphereNode(
+                        radius = 0.06f,
+                        materialInstance = qualityMaterials[marker.quality]
+                    )
+                }
             }
         }
     }
