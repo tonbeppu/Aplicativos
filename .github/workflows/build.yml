@@ -25,7 +25,7 @@ jobs:
       - name: Instalar Gradle 8.5
         uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: '8.5'
+          gradle-version: '8.9'
 
       - name: Restaurar keystore de release
         env:
