@@ -3,7 +3,6 @@ name: Build APK e AAB
 on:
   push:
     branches: [ main ]
-    paths: [ 'android-driver-app/**', '.github/workflows/build.yml' ]
   workflow_dispatch:
 
 defaults:
@@ -39,6 +38,9 @@ jobs:
           keyAlias=${{ secrets.KEY_ALIAS }}
           keyPassword=${{ secrets.KEY_PASSWORD }}
           PROPS
+
+      - name: Limpar build anterior (evita cache com assinatura antiga)
+        run: gradle clean --no-daemon
 
       - name: Build APK (release)
         run: gradle assembleRelease --no-daemon
