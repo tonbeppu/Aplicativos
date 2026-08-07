@@ -614,22 +614,36 @@ class SupabaseClient(context: Context) {
     /** Envia vários pontos de GPS de uma vez só (um único lote/uma única conexão de rede),
      *  em vez de uma requisição por ponto — é o que dá a economia de bateria e permite
      *  guardar pontos coletados offline para enviar quando a internet voltar. */
+    private fun pointToJson(driverId: String, sessionId: String, p: QueuedGpsPoint): JsonObject {
+        return JsonObject().apply {
+            addProperty("driver_id", driverId)
+            addProperty("session_id", sessionId)
+            addProperty("latitude", p.latitude)
+            addProperty("longitude", p.longitude)
+            // Descarta valores que o Postgres/JSON não aceitam (NaN, Infinito) — um único
+            // valor assim no lote inteiro faz o banco recusar TODOS os pontos, não só esse.
+            p.accuracy?.takeIf { it.isFinite() }?.let { addProperty("accuracy", it) }
+            p.speed?.takeIf { it.isFinite() }?.let { addProperty("speed", it) }
+            addProperty("timestamp", p.timestamp)
+        }
+    }
+
+    private suspend fun errorBodyMessage(response: Response): String {
+        val body = try { response.body?.string() } catch (e: Exception) { null } ?: return "HTTP ${response.code}"
+        return try {
+            val json = gson.fromJson(body, JsonObject::class.java)
+            json.get("message")?.asString ?: json.get("hint")?.asString ?: body.take(200)
+        } catch (e: Exception) {
+            body.take(200)
+        }
+    }
+
     suspend fun insertGpsLogsBatch(driverId: String, sessionId: String, points: List<QueuedGpsPoint>): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             if (points.isEmpty()) return@withContext Result.success(Unit)
 
             val jsonArray = com.google.gson.JsonArray()
-            points.forEach { p ->
-                jsonArray.add(JsonObject().apply {
-                    addProperty("driver_id", driverId)
-                    addProperty("session_id", sessionId)
-                    addProperty("latitude", p.latitude)
-                    addProperty("longitude", p.longitude)
-                    p.accuracy?.let { addProperty("accuracy", it) }
-                    p.speed?.let { addProperty("speed", it) }
-                    addProperty("timestamp", p.timestamp)
-                })
-            }
+            points.forEach { jsonArray.add(pointToJson(driverId, sessionId, it)) }
 
             val response = executeAuthed {
                 authRequestBuilder("/rest/v1/driver_gps_logs", "POST")
@@ -637,8 +651,36 @@ class SupabaseClient(context: Context) {
                     .addHeader("Prefer", "return=minimal")
                     .build()
             }
-            if (response.isSuccessful) Result.success(Unit)
-            else Result.failure(Exception("Erro ao enviar lote de GPS (HTTP ${response.code})"))
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                val reason = errorBodyMessage(response)
+                Log.e(TAG, "Falha no lote de GPS (${points.size} pontos): $reason")
+
+                // O lote inteiro caiu — tenta ponto a ponto para não deixar 1 valor ruim
+                // bloquear todos os outros pontos bons pra sempre.
+                var successCount = 0
+                for (p in points) {
+                    try {
+                        val singleResponse = executeAuthed {
+                            authRequestBuilder("/rest/v1/driver_gps_logs", "POST")
+                                .post(pointToJson(driverId, sessionId, p).toString().toRequestBody(jsonMediaType))
+                                .addHeader("Prefer", "return=minimal")
+                                .build()
+                        }
+                        if (singleResponse.isSuccessful) successCount++
+                        else Log.e(TAG, "Ponto individual recusado: ${errorBodyMessage(singleResponse)}")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Erro ao enviar ponto individual", e)
+                    }
+                }
+
+                // Importante: consideramos "resolvido" mesmo quando pontos ruins são descartados —
+                // senão a fila nunca esvazia e os pontos BONS que já foram enviados seriam
+                // reenviados de novo no próximo ciclo, duplicando linhas no banco.
+                Log.i(TAG, "Fallback individual: $successCount/${points.size} pontos salvos (motivo do lote original: $reason)")
+                Result.success(Unit)
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }
