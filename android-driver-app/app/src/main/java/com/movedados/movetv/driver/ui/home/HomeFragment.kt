@@ -134,6 +134,9 @@ class HomeFragment : Fragment() {
             } else {
                 prefs.setGpsEnabled(false)
                 requireContext().stopService(Intent(requireContext(), LocationService::class.java))
+                // Rede de segurança: garante que nenhum ponto travado da fila local sobreviva
+                // ao desligar o monitoramento, mesmo se algum envio tiver falhado antes.
+                prefs.clearGpsQueue()
             }
             updateMonitoringUi(view)
         }
