@@ -12,7 +12,33 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
-        <!-- Cabeçalho: foto (editável) + nome/email + botão Editar -->
+        <!-- Banner de cadastro incompleto -->
+        <LinearLayout
+            android:id="@+id/incompleteBanner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_warning_banner"
+            android:padding="14dp"
+            android:layout_marginBottom="12dp"
+            android:visibility="gone">
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="⚠️ Cadastro incompleto"
+                android:textColor="#F59E0B"
+                android:textStyle="bold"
+                android:textSize="14sp" />
+            <TextView
+                android:id="@+id/tvIncompleteFields"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_secondary"
+                android:textSize="13sp"
+                android:layout_marginTop="4dp" />
+        </LinearLayout>
+
+        <!-- Cabeçalho: foto (editável) + nome/email -->
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -83,17 +109,6 @@
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp" />
                 </LinearLayout>
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnEditToggle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Editar"
-                    android:textSize="13sp"
-                    app:backgroundTint="@color/card_bg_secondary"
-                    app:cornerRadius="8dp"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp" />
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
@@ -119,113 +134,208 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:padding="16dp">
-                <TextView
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="👤 Informações Pessoais"
-                    android:textColor="@color/text_primary"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="8dp" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="8dp">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="👤 Informações Pessoais"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnEditPersonal"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Editar"
+                        android:textSize="13sp"
+                        android:textColor="@color/accent" />
+                </LinearLayout>
                 <LinearLayout
                     android:id="@+id/personalInfoContainer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical" />
+                <LinearLayout
+                    android:id="@+id/personalActionsRow"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="12dp"
+                    android:visibility="gone">
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnCancelPersonal"
+                        android:layout_width="0dp"
+                        android:layout_height="46dp"
+                        android:layout_weight="1"
+                        android:text="Cancelar"
+                        android:textSize="13sp"
+                        app:backgroundTint="@color/card_bg_secondary"
+                        app:cornerRadius="10dp"
+                        android:layout_marginEnd="6dp" />
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnSavePersonal"
+                        android:layout_width="0dp"
+                        android:layout_height="46dp"
+                        android:layout_weight="1"
+                        android:text="Salvar"
+                        android:textSize="13sp"
+                        app:backgroundTint="@color/success"
+                        app:cornerRadius="10dp"
+                        android:layout_marginStart="6dp" />
+                </LinearLayout>
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
         <!-- Card: Veículo -->
         <androidx.cardview.widget.CardView
-            android:id="@+id/cardVeiculo"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             app:cardBackgroundColor="@color/card_bg"
             app:cardCornerRadius="14dp"
             app:cardElevation="2dp"
-            android:layout_marginTop="14dp"
-            android:visibility="gone">
+            android:layout_marginTop="14dp">
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:padding="16dp">
-                <TextView
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="🚗 Veículo"
-                    android:textColor="@color/text_primary"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="8dp" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="8dp">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="🚗 Veículo"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnEditVehicle"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Editar"
+                        android:textSize="13sp"
+                        android:textColor="@color/accent" />
+                </LinearLayout>
                 <LinearLayout
                     android:id="@+id/vehicleContainer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical" />
+                <LinearLayout
+                    android:id="@+id/vehicleActionsRow"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="12dp"
+                    android:visibility="gone">
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnCancelVehicle"
+                        android:layout_width="0dp"
+                        android:layout_height="46dp"
+                        android:layout_weight="1"
+                        android:text="Cancelar"
+                        android:textSize="13sp"
+                        app:backgroundTint="@color/card_bg_secondary"
+                        app:cornerRadius="10dp"
+                        android:layout_marginEnd="6dp" />
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnSaveVehicle"
+                        android:layout_width="0dp"
+                        android:layout_height="46dp"
+                        android:layout_weight="1"
+                        android:text="Salvar"
+                        android:textSize="13sp"
+                        app:backgroundTint="@color/success"
+                        app:cornerRadius="10dp"
+                        android:layout_marginStart="6dp" />
+                </LinearLayout>
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
         <!-- Card: Informações de Pagamento -->
         <androidx.cardview.widget.CardView
-            android:id="@+id/cardPagamento"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             app:cardBackgroundColor="@color/card_bg"
             app:cardCornerRadius="14dp"
             app:cardElevation="2dp"
-            android:layout_marginTop="14dp"
-            android:visibility="gone">
+            android:layout_marginTop="14dp">
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:padding="16dp">
-                <TextView
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="$ Informações de Pagamento"
-                    android:textColor="@color/text_primary"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="8dp" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="8dp">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="$ Informações de Pagamento"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnEditPayment"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Editar"
+                        android:textSize="13sp"
+                        android:textColor="@color/accent" />
+                </LinearLayout>
                 <LinearLayout
                     android:id="@+id/paymentContainer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical" />
+                <LinearLayout
+                    android:id="@+id/paymentActionsRow"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="12dp"
+                    android:visibility="gone">
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnCancelPayment"
+                        android:layout_width="0dp"
+                        android:layout_height="46dp"
+                        android:layout_weight="1"
+                        android:text="Cancelar"
+                        android:textSize="13sp"
+                        app:backgroundTint="@color/card_bg_secondary"
+                        app:cornerRadius="10dp"
+                        android:layout_marginEnd="6dp" />
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnSavePayment"
+                        android:layout_width="0dp"
+                        android:layout_height="46dp"
+                        android:layout_weight="1"
+                        android:text="Salvar"
+                        android:textSize="13sp"
+                        app:backgroundTint="@color/success"
+                        app:cornerRadius="10dp"
+                        android:layout_marginStart="6dp" />
+                </LinearLayout>
             </LinearLayout>
         </androidx.cardview.widget.CardView>
-
-        <!-- Botões Salvar/Cancelar (só aparecem em modo edição) -->
-        <LinearLayout
-            android:id="@+id/editActionsRow"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="16dp"
-            android:visibility="gone">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnCancelEdit"
-                android:layout_width="0dp"
-                android:layout_height="52dp"
-                android:layout_weight="1"
-                android:text="Cancelar"
-                app:backgroundTint="@color/card_bg_secondary"
-                app:cornerRadius="12dp"
-                android:layout_marginEnd="8dp" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnSaveEdit"
-                android:layout_width="0dp"
-                android:layout_height="52dp"
-                android:layout_weight="1"
-                android:text="Salvar"
-                app:backgroundTint="@color/success"
-                app:cornerRadius="12dp"
-                android:layout_marginStart="8dp" />
-        </LinearLayout>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnLogout"
