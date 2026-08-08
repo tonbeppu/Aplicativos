@@ -871,7 +871,7 @@ class HomeFragment : Fragment() {
             val uploadResult = supabase.uploadAdhesionPhoto(campaignId, driverId, jpegBytes)
             val photoUrl = uploadResult.getOrNull()
             if (photoUrl == null) {
-                Toast.makeText(requireContext(), "Erro ao enviar foto: ${uploadResult.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                showErrorDialog("Erro ao enviar foto", uploadResult.exceptionOrNull()?.message ?: "Erro desconhecido")
                 return@launch
             }
             val recordResult = supabase.insertAdhesionRecord(campaignId, driverId, photoUrl, scheduleId)
@@ -879,9 +879,25 @@ class HomeFragment : Fragment() {
                 Toast.makeText(requireContext(), "Adesivação registrada com sucesso!", Toast.LENGTH_LONG).show()
                 loadCampaigns(requireView())
             } else {
-                Toast.makeText(requireContext(), "Erro ao registrar: ${recordResult.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                showErrorDialog("Erro ao registrar adesivação", recordResult.exceptionOrNull()?.message ?: "Erro desconhecido")
             }
         }
+    }
+
+    /** Mostra o erro completo numa caixa que fica na tela (o Toast some rápido demais e
+     *  corta mensagens longas) — o texto é selecionável, dá pra copiar e reportar. */
+    private fun showErrorDialog(title: String, message: String) {
+        val tv = TextView(requireContext()).apply {
+            text = message
+            setPadding(dp(20), dp(16), dp(20), dp(16))
+            textSize = 14f
+            setTextIsSelectable(true)
+        }
+        android.app.AlertDialog.Builder(requireContext())
+            .setTitle(title)
+            .setView(tv)
+            .setPositiveButton("OK", null)
+            .show()
     }
 
     private fun formatScheduleDate(iso: String): String {
