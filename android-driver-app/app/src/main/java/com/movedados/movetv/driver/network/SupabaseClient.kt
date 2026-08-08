@@ -517,27 +517,30 @@ class SupabaseClient(context: Context) {
 
     suspend fun uploadAdhesionPhoto(campaignId: String, driverId: String, jpegBytes: ByteArray): Result<String> = withContext(Dispatchers.IO) {
         try {
-            val accessToken = prefs.getAccessToken() ?: return@withContext Result.failure(Exception("Sessão expirada, faça login novamente"))
             // A política de segurança (RLS) exige que a PRIMEIRA pasta do caminho seja o ID
-            // do motorista — sem isso, o upload é recusado (foi a causa real do erro 400).
+            // do motorista — sem isso, o upload é recusado.
             val filePath = "$driverId/${campaignId}_${System.currentTimeMillis()}.jpg"
             val body = jpegBytes.toRequestBody("image/jpeg".toMediaType())
-            val request = Request.Builder()
-                .url("$BASE_URL/storage/v1/object/adhesion-photos/$filePath")
-                .post(body)
-                .addHeader("apikey", ANON_KEY)
-                .addHeader("Authorization", "Bearer $accessToken")
-                .addHeader("Content-Type", "image/jpeg")
-                .addHeader("x-upsert", "true")
-                .build()
 
-            val response = client.newCall(request).execute()
+            // Usa executeAuthed (com renovação automática de token se estiver vencido) —
+            // um token vencido faz o auth.uid() do banco ficar nulo, e a política de segurança
+            // recusa o upload com a mesma aparência de "caminho errado", mesmo estando certo.
+            val response = executeAuthed {
+                Request.Builder()
+                    .url("$BASE_URL/storage/v1/object/adhesion-photos/$filePath")
+                    .post(body)
+                    .addHeader("apikey", ANON_KEY)
+                    .addHeader("Authorization", "Bearer ${prefs.getAccessToken() ?: ""}")
+                    .addHeader("Content-Type", "image/jpeg")
+                    .addHeader("x-upsert", "true")
+                    .build()
+            }
             if (response.isSuccessful) {
                 val publicUrl = "$BASE_URL/storage/v1/object/public/adhesion-photos/$filePath"
                 Result.success(publicUrl)
             } else {
                 val errorBody = try { response.body?.string() } catch (e: Exception) { null }
-                Result.failure(Exception("Erro ao enviar foto (HTTP ${response.code}): ${errorBody?.take(200) ?: ""}"))
+                Result.failure(Exception("Erro ao enviar foto (HTTP ${response.code}): ${errorBody?.take(300) ?: ""}"))
             }
         } catch (e: Exception) {
             Result.failure(e)
