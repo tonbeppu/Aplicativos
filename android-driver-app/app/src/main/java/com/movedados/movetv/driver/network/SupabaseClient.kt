@@ -517,18 +517,27 @@ class SupabaseClient(context: Context) {
 
     suspend fun uploadAdhesionPhoto(campaignId: String, driverId: String, jpegBytes: ByteArray): Result<String> = withContext(Dispatchers.IO) {
         try {
+            val accessToken = prefs.getAccessToken() ?: return@withContext Result.failure(Exception("Sessão expirada, faça login novamente"))
             val fileName = "${campaignId}_${driverId}_${System.currentTimeMillis()}.jpg"
-            val response = executeAuthed {
-                authRequestBuilder("/storage/v1/object/adhesion-photos/$fileName", "POST")
-                    .post(jpegBytes.toRequestBody("image/jpeg".toMediaType()))
-                    .addHeader("x-upsert", "true")
-                    .build()
-            }
+            val body = jpegBytes.toRequestBody("image/jpeg".toMediaType())
+            // Requisição "crua" (sem passar por authRequestBuilder), igual ao uploadProfilePhoto —
+            // evita o conflito de dois cabeçalhos Content-Type que causava o erro 400.
+            val request = Request.Builder()
+                .url("$BASE_URL/storage/v1/object/adhesion-photos/$fileName")
+                .post(body)
+                .addHeader("apikey", ANON_KEY)
+                .addHeader("Authorization", "Bearer $accessToken")
+                .addHeader("Content-Type", "image/jpeg")
+                .addHeader("x-upsert", "true")
+                .build()
+
+            val response = client.newCall(request).execute()
             if (response.isSuccessful) {
                 val publicUrl = "$BASE_URL/storage/v1/object/public/adhesion-photos/$fileName"
                 Result.success(publicUrl)
             } else {
-                Result.failure(Exception("Erro ao enviar foto (HTTP ${response.code})"))
+                val errorBody = try { response.body?.string() } catch (e: Exception) { null }
+                Result.failure(Exception("Erro ao enviar foto (HTTP ${response.code}): ${errorBody?.take(200) ?: ""}"))
             }
         } catch (e: Exception) {
             Result.failure(e)
