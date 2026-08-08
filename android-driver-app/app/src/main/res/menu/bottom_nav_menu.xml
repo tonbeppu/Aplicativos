@@ -7,7 +7,7 @@
     <item
         android:id="@+id/nav_monitoring"
         android:icon="@drawable/ic_nav_monitoring"
-        android:title="MoveDados" />
+        android:title="move dados" />
     <item
         android:id="@+id/nav_profile"
         android:icon="@drawable/ic_nav_profile"
