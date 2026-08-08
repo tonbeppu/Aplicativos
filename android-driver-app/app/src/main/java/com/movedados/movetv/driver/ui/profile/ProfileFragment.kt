@@ -55,11 +55,11 @@ class ProfileFragment : Fragment() {
         "RS", "RO", "RR", "SC", "SP", "SE", "TO"
     )
     private val motorOptions = listOf("Selecione", "Combustão", "Elétrico")
+    private val pixTypeOptions = listOf("Selecione", "CPF", "CNPJ", "EMAIL", "TELEFONE", "ALEATÓRIA")
     private val colorOptions = listOf(
         "Selecione", "Branco", "Preto", "Prata", "Cinza", "Vermelho", "Azul", "Verde",
         "Amarelo", "Marrom", "Bege", "Dourado", "Laranja", "Roxo", "Vinho", "Outra"
     )
-    private val pixTypeOptions = listOf("Selecione", "CPF", "CNPJ", "EMAIL", "TELEFONE", "ALEATÓRIA")
 
     private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { loadBitmapFromUri(it) }
@@ -81,7 +81,6 @@ class ProfileFragment : Fragment() {
         supabase = SupabaseClient(requireContext())
         gson = Gson()
 
-        // Recorta a foto do avatar em círculo (antes ficava quadrada por cima do fundo redondo)
         val avatarPhoto = view.findViewById<ImageView>(R.id.ivAvatarPhoto)
         avatarPhoto.clipToOutline = true
         avatarPhoto.outlineProvider = object : ViewOutlineProvider() {
@@ -94,9 +93,18 @@ class ProfileFragment : Fragment() {
 
         view.findViewById<View>(R.id.btnLogout).setOnClickListener { logout() }
         view.findViewById<View>(R.id.avatarFrame).setOnClickListener { showPhotoPickerDialog() }
-        view.findViewById<MaterialButton>(R.id.btnEditToggle).setOnClickListener { enterEditMode(view) }
-        view.findViewById<View>(R.id.btnCancelEdit).setOnClickListener { exitEditMode(view) }
-        view.findViewById<View>(R.id.btnSaveEdit).setOnClickListener { saveEdits(view) }
+
+        view.findViewById<MaterialButton>(R.id.btnEditPersonal).setOnClickListener { enterEditPersonal(view) }
+        view.findViewById<View>(R.id.btnCancelPersonal).setOnClickListener { exitEditPersonal(view) }
+        view.findViewById<View>(R.id.btnSavePersonal).setOnClickListener { savePersonal(view) }
+
+        view.findViewById<MaterialButton>(R.id.btnEditVehicle).setOnClickListener { enterEditVehicle(view) }
+        view.findViewById<View>(R.id.btnCancelVehicle).setOnClickListener { exitEditVehicle(view) }
+        view.findViewById<View>(R.id.btnSaveVehicle).setOnClickListener { saveVehicle(view) }
+
+        view.findViewById<MaterialButton>(R.id.btnEditPayment).setOnClickListener { enterEditPayment(view) }
+        view.findViewById<View>(R.id.btnCancelPayment).setOnClickListener { exitEditPayment(view) }
+        view.findViewById<View>(R.id.btnSavePayment).setOnClickListener { savePayment(view) }
 
         if (profile != null) {
             displayProfile(view)
@@ -122,6 +130,34 @@ class ProfileFragment : Fragment() {
         }
     }
 
+    // ==================== BANNER DE CADASTRO INCOMPLETO ====================
+
+    private fun updateIncompleteBanner(view: View) {
+        val p = profile ?: return
+        val missing = mutableListOf<String>()
+        if (p.vehicle_manufacturer.isNullOrBlank()) missing.add("Fabricante do veículo")
+        if (p.vehicle_model.isNullOrBlank()) missing.add("Modelo do veículo")
+        if (p.vehicle_plate.isNullOrBlank()) missing.add("Placa")
+        if (p.vehicle_color.isNullOrBlank()) missing.add("Cor do veículo")
+        if (p.vehicle_motor_type.isNullOrBlank()) missing.add("Tipo de motor")
+        if (p.pix_type.isNullOrBlank()) missing.add("Tipo de chave PIX")
+        if (p.pix_key.isNullOrBlank()) missing.add("Chave PIX")
+
+        val banner = view.findViewById<View>(R.id.incompleteBanner)
+        if (missing.isEmpty()) {
+            banner.visibility = View.GONE
+        } else {
+            banner.visibility = View.VISIBLE
+            view.findViewById<TextView>(R.id.tvIncompleteFields).text =
+                "Falta preencher: " + missing.joinToString(", ") + ". Toque em \"Editar\" no card correspondente."
+        }
+    }
+
+    fun isProfileIncomplete(p: Profile): Boolean {
+        return p.vehicle_manufacturer.isNullOrBlank() || p.vehicle_plate.isNullOrBlank() ||
+            p.pix_type.isNullOrBlank() || p.pix_key.isNullOrBlank()
+    }
+
     // ==================== EXIBIÇÃO (modo leitura) ====================
 
     private fun displayProfile(view: View) {
@@ -130,6 +166,7 @@ class ProfileFragment : Fragment() {
         view.findViewById<TextView>(R.id.tvUserEmail).text = p.email
 
         loadAvatar(view, p.profile_photo_url)
+        updateIncompleteBanner(view)
 
         val personalContainer = view.findViewById<LinearLayout>(R.id.personalInfoContainer)
         personalContainer.removeAllViews()
@@ -140,27 +177,19 @@ class ProfileFragment : Fragment() {
         addReadRow(personalContainer, "Estado", p.state ?: "Não informado")
         addReadRow(personalContainer, "Cidade", p.city ?: "Não informado")
 
-        val hasVehicle = !p.vehicle_manufacturer.isNullOrBlank() || !p.vehicle_plate.isNullOrBlank()
-        view.findViewById<View>(R.id.cardVeiculo).visibility = if (hasVehicle) View.VISIBLE else View.GONE
-        if (hasVehicle) {
-            val vehicleContainer = view.findViewById<LinearLayout>(R.id.vehicleContainer)
-            vehicleContainer.removeAllViews()
-            addReadRow(vehicleContainer, "Fabricante", p.vehicle_manufacturer ?: "Não informado")
-            addReadRow(vehicleContainer, "Modelo", p.vehicle_model ?: "Não informado")
-            addReadRow(vehicleContainer, "Ano", p.vehicle_year?.toString() ?: "Não informado")
-            addReadRow(vehicleContainer, "Placa", p.vehicle_plate ?: "Não informado")
-            addReadRow(vehicleContainer, "Cor", p.vehicle_color ?: "Não informado")
-            addReadRow(vehicleContainer, "Motor", p.vehicle_motor_type ?: "Não informado")
-        }
+        val vehicleContainer = view.findViewById<LinearLayout>(R.id.vehicleContainer)
+        vehicleContainer.removeAllViews()
+        addReadRow(vehicleContainer, "Fabricante", p.vehicle_manufacturer ?: "Não informado")
+        addReadRow(vehicleContainer, "Modelo", p.vehicle_model ?: "Não informado")
+        addReadRow(vehicleContainer, "Ano", p.vehicle_year?.toString() ?: "Não informado")
+        addReadRow(vehicleContainer, "Placa", p.vehicle_plate ?: "Não informado")
+        addReadRow(vehicleContainer, "Cor", p.vehicle_color ?: "Não informado")
+        addReadRow(vehicleContainer, "Motor", p.vehicle_motor_type ?: "Não informado")
 
-        val hasPayment = !p.pix_type.isNullOrBlank() || !p.pix_key.isNullOrBlank()
-        view.findViewById<View>(R.id.cardPagamento).visibility = if (hasPayment) View.VISIBLE else View.GONE
-        if (hasPayment) {
-            val paymentContainer = view.findViewById<LinearLayout>(R.id.paymentContainer)
-            paymentContainer.removeAllViews()
-            addReadRow(paymentContainer, "Tipo de Chave PIX", p.pix_type ?: "Não informado")
-            addReadRow(paymentContainer, "Chave PIX", p.pix_key ?: "Não informado")
-        }
+        val paymentContainer = view.findViewById<LinearLayout>(R.id.paymentContainer)
+        paymentContainer.removeAllViews()
+        addReadRow(paymentContainer, "Tipo de Chave PIX", p.pix_type ?: "Não informado")
+        addReadRow(paymentContainer, "Chave PIX", p.pix_key ?: "Não informado")
     }
 
     private fun addReadRow(container: LinearLayout, label: String, value: String) {
@@ -201,7 +230,7 @@ class ProfileFragment : Fragment() {
                         placeholder.visibility = View.GONE
                     }
                 }
-            } catch (e: Exception) { /* mantém o ícone padrão se a foto falhar ao carregar */ }
+            } catch (e: Exception) { }
         }
     }
 
@@ -274,28 +303,26 @@ class ProfileFragment : Fragment() {
         return stream.toByteArray()
     }
 
-    // ==================== MODO DE EDIÇÃO ====================
+    // ==================== CARD: INFORMAÇÕES PESSOAIS ====================
 
-    private fun enterEditMode(view: View) {
+    private fun enterEditPersonal(view: View) {
         val p = profile ?: return
-        editFields.clear()
-        editSpinners.clear()
+        editFields.keys.filter { it in setOf("full_name", "cpf", "phone", "birth_date") }.forEach { editFields.remove(it) }
+        editSpinners.remove("state"); editSpinners.remove("city")
 
-        view.findViewById<MaterialButton>(R.id.btnEditToggle).visibility = View.GONE
-        view.findViewById<View>(R.id.editActionsRow).visibility = View.VISIBLE
+        view.findViewById<View>(R.id.btnEditPersonal).visibility = View.GONE
+        view.findViewById<View>(R.id.personalActionsRow).visibility = View.VISIBLE
 
-        // ---- Informações Pessoais ----
-        val personalContainer = view.findViewById<LinearLayout>(R.id.personalInfoContainer)
-        personalContainer.removeAllViews()
-        addEditRow(personalContainer, "full_name", "Nome", p.full_name)
-        addEditRow(personalContainer, "cpf", "CPF", formatCpf(p.cpf).takeIf { it != "Não informado" } ?: "", mask = "###.###.###-##")
-        addEditRow(personalContainer, "phone", "Telefone", p.phone ?: "", mask = "(##) #####-####")
-        addEditRow(personalContainer, "birth_date", "Nascimento (dd/mm/aaaa)", formatDateDisplay(p.birth_date).takeIf { it != "Não informado" } ?: "")
+        val container = view.findViewById<LinearLayout>(R.id.personalInfoContainer)
+        container.removeAllViews()
+        addEditRow(container, "full_name", "Nome", p.full_name)
+        addEditRow(container, "cpf", "CPF", formatCpf(p.cpf).takeIf { it != "Não informado" } ?: "", mask = "###.###.###-##")
+        addEditRow(container, "phone", "Telefone", p.phone ?: "", mask = "(##) #####-####")
+        addEditRow(container, "birth_date", "Nascimento (dd/mm/aaaa)", formatDateDisplay(p.birth_date).takeIf { it != "Não informado" } ?: "")
 
-        // Estado ANTES de Cidade, e Cidade em cascata (carrega via IBGE ao escolher o estado)
-        val spState = buildSpinner(personalContainer, "Estado", ufList)
+        val spState = buildSpinner(container, "Estado", ufList)
         editSpinners["state"] = spState
-        val spCity = buildSpinner(personalContainer, "Cidade", listOf("Selecione o estado primeiro"))
+        val spCity = buildSpinner(container, "Cidade", listOf("Selecione o estado primeiro"))
         editSpinners["city"] = spCity
 
         spState.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
@@ -315,30 +342,63 @@ class ProfileFragment : Fragment() {
                 }
             }
         }
+    }
 
-        // ---- Veículo ----
-        view.findViewById<View>(R.id.cardVeiculo).visibility = View.VISIBLE
-        val vehicleContainer = view.findViewById<LinearLayout>(R.id.vehicleContainer)
-        vehicleContainer.removeAllViews()
+    private fun savePersonal(view: View) {
+        val p = profile ?: return
+        val birthDateText = editFields["birth_date"]?.text?.toString()?.trim().orEmpty()
+        val birthDateIso = if (birthDateText.isNotBlank()) parseBirthDate(birthDateText) else null
+        if (birthDateText.isNotBlank() && birthDateIso == null) {
+            Snackbar.make(view, "Data de nascimento inválida (use dd/mm/aaaa)", Snackbar.LENGTH_LONG).show()
+            return
+        }
+        val stateSelected = spinnerValue(editSpinners["state"], "Selecione")
+        val citySelected = spinnerValue(editSpinners["city"], "Selecione", "Selecione o estado primeiro", "Carregando...", "Erro ao carregar cidades")
 
-        val spBrand = buildSpinner(vehicleContainer, "Fabricante", listOf("Carregando..."))
+        val updated = p.copy(
+            full_name = editFields["full_name"]?.text?.toString()?.trim()?.ifBlank { p.full_name } ?: p.full_name,
+            cpf = editFields["cpf"]?.text?.toString()?.filter { it.isDigit() }?.ifBlank { null },
+            phone = editFields["phone"]?.text?.toString()?.trim()?.ifBlank { null },
+            birth_date = birthDateIso ?: p.birth_date,
+            state = stateSelected ?: p.state,
+            city = citySelected ?: p.city
+        )
+        persistCardSave(view, updated) { exitEditPersonal(view) }
+    }
+
+    private fun exitEditPersonal(view: View) {
+        view.findViewById<View>(R.id.btnEditPersonal).visibility = View.VISIBLE
+        view.findViewById<View>(R.id.personalActionsRow).visibility = View.GONE
+        displayProfile(view)
+    }
+
+    // ==================== CARD: VEÍCULO ====================
+
+    private fun enterEditVehicle(view: View) {
+        val p = profile ?: return
+        view.findViewById<View>(R.id.btnEditVehicle).visibility = View.GONE
+        view.findViewById<View>(R.id.vehicleActionsRow).visibility = View.VISIBLE
+
+        val container = view.findViewById<LinearLayout>(R.id.vehicleContainer)
+        container.removeAllViews()
+
+        val spBrand = buildSpinner(container, "Fabricante", listOf("Carregando..."))
         editSpinners["vehicle_manufacturer"] = spBrand
-        val brandOtherRow = addEditRow(vehicleContainer, "vehicle_manufacturer_other", "Nome do fabricante", "")
+        val brandOtherRow = addEditRow(container, "vehicle_manufacturer_other", "Nome do fabricante", "")
         brandOtherRow.visibility = View.GONE
 
-        val spModel = buildSpinner(vehicleContainer, "Modelo", listOf("Selecione a marca primeiro"))
+        val spModel = buildSpinner(container, "Modelo", listOf("Selecione a marca primeiro"))
         editSpinners["vehicle_model"] = spModel
-        val modelOtherRow = addEditRow(vehicleContainer, "vehicle_model_other", "Nome do modelo", "")
+        val modelOtherRow = addEditRow(container, "vehicle_model_other", "Nome do modelo", "")
         modelOtherRow.visibility = View.GONE
 
-        addEditRow(vehicleContainer, "vehicle_year", "Ano", p.vehicle_year?.toString() ?: "")
-        addEditRow(vehicleContainer, "vehicle_plate", "Placa", p.vehicle_plate ?: "", plateMask = true)
+        addEditRow(container, "vehicle_year", "Ano", p.vehicle_year?.toString() ?: "")
+        addEditRow(container, "vehicle_plate", "Placa", p.vehicle_plate ?: "", plateMask = true)
 
-        val spColor = buildSpinner(vehicleContainer, "Cor", colorOptions)
+        val spColor = buildSpinner(container, "Cor", colorOptions)
         editSpinners["vehicle_color"] = spColor
-        val colorOtherRow = addEditRow(vehicleContainer, "vehicle_color_other", "Qual cor?", "")
+        val colorOtherRow = addEditRow(container, "vehicle_color_other", "Qual cor?", "")
         colorOtherRow.visibility = View.GONE
-
         val colorIdx = colorOptions.indexOf(p.vehicle_color).let { if (it < 0 && !p.vehicle_color.isNullOrBlank()) colorOptions.size - 1 else if (it < 0) 0 else it }
         spColor.setSelection(colorIdx)
         if (colorIdx == colorOptions.size - 1 && !p.vehicle_color.isNullOrBlank() && !colorOptions.contains(p.vehicle_color)) {
@@ -352,11 +412,10 @@ class ProfileFragment : Fragment() {
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
-        val spMotor = buildSpinner(vehicleContainer, "Motor", motorOptions)
+        val spMotor = buildSpinner(container, "Motor", motorOptions)
         editSpinners["vehicle_motor_type"] = spMotor
         val storedMotor = if (p.vehicle_motor_type == "Combustao") "Combustão" else p.vehicle_motor_type
-        val motorIdx = motorOptions.indexOf(storedMotor).let { if (it < 0) 0 else it }
-        spMotor.setSelection(motorIdx)
+        spMotor.setSelection(motorOptions.indexOf(storedMotor).let { if (it < 0) 0 else it })
 
         loadVehicleBrands(spBrand) {
             val currentBrand = p.vehicle_manufacturer
@@ -371,7 +430,6 @@ class ProfileFragment : Fragment() {
                         val modelIdx = p.vehicle_model?.let { modelAdapter?.getPosition(it) } ?: -1
                         if (modelIdx >= 0) spModel.setSelection(modelIdx)
                         else if (!p.vehicle_model.isNullOrBlank()) {
-                            // Modelo salvo não está na lista da FIPE: mostra como "Outro" já preenchido
                             spModel.setSelection((modelAdapter?.count ?: 1) - 1)
                             modelOtherRow.visibility = View.VISIBLE
                             editFields["vehicle_model_other"]?.setText(p.vehicle_model)
@@ -379,7 +437,6 @@ class ProfileFragment : Fragment() {
                     }
                 }
             } else if (!currentBrand.isNullOrBlank()) {
-                // Fabricante salvo não está na lista da FIPE: mostra como "Outros" já preenchido
                 val lastIdx = (adapter?.count ?: 1) - 1
                 spBrand.setSelection(lastIdx)
                 brandOtherRow.visibility = View.VISIBLE
@@ -413,15 +470,58 @@ class ProfileFragment : Fragment() {
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
+    }
 
-        // ---- Pagamento ----
-        view.findViewById<View>(R.id.cardPagamento).visibility = View.VISIBLE
-        val paymentContainer = view.findViewById<LinearLayout>(R.id.paymentContainer)
-        paymentContainer.removeAllViews()
+    private fun saveVehicle(view: View) {
+        val p = profile ?: return
+        val brandSelected = spinnerValue(editSpinners["vehicle_manufacturer"], "Selecione", "Carregando...")
+        val finalBrand = if (brandSelected == "Outros") {
+            capitalizeFirstOnly(editFields["vehicle_manufacturer_other"]?.text?.toString() ?: "")
+        } else brandSelected
 
-        val spPixType = buildSpinner(paymentContainer, "Tipo de Chave PIX", pixTypeOptions)
+        val modelSelected = spinnerValue(editSpinners["vehicle_model"], "Selecione", "Selecione a marca primeiro", "Carregando...")
+        val finalModel = if (modelSelected == "Outro" || modelSelected == null) {
+            capitalizeFirstOnly(editFields["vehicle_model_other"]?.text?.toString() ?: "")
+        } else modelSelected
+
+        val colorSelected = spinnerValue(editSpinners["vehicle_color"], "Selecione")
+        val finalColor = if (colorSelected == "Outra") {
+            capitalizeFirstOnly(editFields["vehicle_color_other"]?.text?.toString() ?: "")
+        } else colorSelected
+
+        val motorDisplay = spinnerValue(editSpinners["vehicle_motor_type"], "Selecione")
+        val motorFinal = if (motorDisplay == "Combustão") "Combustao" else motorDisplay
+
+        val updated = p.copy(
+            vehicle_manufacturer = finalBrand?.ifBlank { null } ?: p.vehicle_manufacturer,
+            vehicle_model = finalModel?.ifBlank { null } ?: p.vehicle_model,
+            vehicle_year = editFields["vehicle_year"]?.text?.toString()?.trim()?.toIntOrNull() ?: p.vehicle_year,
+            vehicle_plate = editFields["vehicle_plate"]?.text?.toString()?.trim()?.uppercase()?.ifBlank { null } ?: p.vehicle_plate,
+            vehicle_color = finalColor?.ifBlank { null } ?: p.vehicle_color,
+            vehicle_motor_type = motorFinal ?: p.vehicle_motor_type
+        )
+        persistCardSave(view, updated) { exitEditVehicle(view) }
+    }
+
+    private fun exitEditVehicle(view: View) {
+        view.findViewById<View>(R.id.btnEditVehicle).visibility = View.VISIBLE
+        view.findViewById<View>(R.id.vehicleActionsRow).visibility = View.GONE
+        displayProfile(view)
+    }
+
+    // ==================== CARD: PAGAMENTO ====================
+
+    private fun enterEditPayment(view: View) {
+        val p = profile ?: return
+        view.findViewById<View>(R.id.btnEditPayment).visibility = View.GONE
+        view.findViewById<View>(R.id.paymentActionsRow).visibility = View.VISIBLE
+
+        val container = view.findViewById<LinearLayout>(R.id.paymentContainer)
+        container.removeAllViews()
+
+        val spPixType = buildSpinner(container, "Tipo de Chave PIX", pixTypeOptions)
         editSpinners["pix_type"] = spPixType
-        addEditRow(paymentContainer, "pix_key", "Chave PIX", p.pix_key ?: "")
+        addEditRow(container, "pix_key", "Chave PIX", p.pix_key ?: "")
 
         val pixIdx = pixTypeOptions.indexOf(p.pix_type?.uppercase()).let { if (it < 0) 0 else it }
         spPixType.setSelection(pixIdx)
@@ -433,6 +533,41 @@ class ProfileFragment : Fragment() {
                 applyPixMask(spPixType.selectedItem as? String)
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+    }
+
+    private fun savePayment(view: View) {
+        val p = profile ?: return
+        val pixTypeFinal = spinnerValue(editSpinners["pix_type"], "Selecione")
+        val updated = p.copy(
+            pix_type = pixTypeFinal ?: p.pix_type,
+            pix_key = editFields["pix_key"]?.text?.toString()?.trim()?.ifBlank { null } ?: p.pix_key
+        )
+        persistCardSave(view, updated) { exitEditPayment(view) }
+    }
+
+    private fun exitEditPayment(view: View) {
+        view.findViewById<View>(R.id.btnEditPayment).visibility = View.VISIBLE
+        view.findViewById<View>(R.id.paymentActionsRow).visibility = View.GONE
+        displayProfile(view)
+    }
+
+    // ==================== SALVAMENTO COMPARTILHADO ====================
+
+    private fun persistCardSave(view: View, updated: Profile, onDone: () -> Unit) {
+        val progressBar = view.findViewById<ProgressBar>(R.id.progressBar)
+        progressBar.visibility = View.VISIBLE
+        viewLifecycleOwner.lifecycleScope.launch {
+            val result = supabase.updateProfile(updated)
+            progressBar.visibility = View.GONE
+            if (result.isSuccess) {
+                profile = updated
+                prefs.saveProfileJson(gson.toJson(updated))
+                onDone()
+                Snackbar.make(view, "Dados atualizados com sucesso!", Snackbar.LENGTH_SHORT).show()
+            } else {
+                Snackbar.make(view, "Erro ao salvar: ${result.exceptionOrNull()?.message ?: ""}", Snackbar.LENGTH_LONG).show()
+            }
         }
     }
 
@@ -505,8 +640,6 @@ class ProfileFragment : Fragment() {
         spinner.adapter = adapter
     }
 
-    // ---- Cidade via IBGE ----
-
     private fun loadCities(spinner: Spinner, uf: String, onLoaded: (() -> Unit)? = null) {
         citiesCache[uf]?.let { simpleAdapter(spinner, it); onLoaded?.invoke(); return }
         simpleAdapter(spinner, listOf("Carregando..."))
@@ -531,8 +664,6 @@ class ProfileFragment : Fragment() {
             listOf("Erro ao carregar cidades")
         }
     }
-
-    // ---- Fabricante/Modelo via FIPE ----
 
     private fun loadVehicleBrands(spinner: Spinner, onLoaded: (() -> Unit)? = null) {
         viewLifecycleOwner.lifecycleScope.launch {
@@ -578,85 +709,6 @@ class ProfileFragment : Fragment() {
         } catch (e: Exception) { emptyList() }
     }
 
-    private fun exitEditMode(view: View) {
-        editFields.clear()
-        editSpinners.clear()
-        pixMaskWatcher = null
-        view.findViewById<MaterialButton>(R.id.btnEditToggle).visibility = View.VISIBLE
-        view.findViewById<View>(R.id.editActionsRow).visibility = View.GONE
-        displayProfile(view)
-    }
-
-    private fun saveEdits(view: View) {
-        val p = profile ?: return
-        val birthDateText = editFields["birth_date"]?.text?.toString()?.trim().orEmpty()
-        val birthDateIso = if (birthDateText.isNotBlank()) parseBirthDate(birthDateText) else null
-        if (birthDateText.isNotBlank() && birthDateIso == null) {
-            Snackbar.make(view, "Data de nascimento inválida (use dd/mm/aaaa)", Snackbar.LENGTH_LONG).show()
-            return
-        }
-
-        val stateSelected = spinnerValue(editSpinners["state"], "Selecione")
-        val citySelected = spinnerValue(editSpinners["city"], "Selecione", "Selecione o estado primeiro", "Carregando...", "Erro ao carregar cidades")
-
-        val brandSelected = spinnerValue(editSpinners["vehicle_manufacturer"], "Selecione", "Carregando...")
-        val finalBrand = if (brandSelected == "Outros") {
-            capitalizeFirstOnly(editFields["vehicle_manufacturer_other"]?.text?.toString() ?: "")
-        } else brandSelected
-
-        val modelSelected = spinnerValue(editSpinners["vehicle_model"], "Selecione", "Selecione a marca primeiro", "Carregando...")
-        val finalModel = if (modelSelected == "Outro" || modelSelected == null) {
-            capitalizeFirstOnly(editFields["vehicle_model_other"]?.text?.toString() ?: "")
-        } else modelSelected
-
-        val colorSelected = spinnerValue(editSpinners["vehicle_color"], "Selecione")
-        val finalColor = if (colorSelected == "Outra") {
-            capitalizeFirstOnly(editFields["vehicle_color_other"]?.text?.toString() ?: "")
-        } else colorSelected
-
-        val motorDisplay = spinnerValue(editSpinners["vehicle_motor_type"], "Selecione")
-        val motorFinal = if (motorDisplay == "Combustão") "Combustao" else motorDisplay
-
-        val pixTypeFinal = spinnerValue(editSpinners["pix_type"], "Selecione")
-
-        val updated = p.copy(
-            full_name = editFields["full_name"]?.text?.toString()?.trim()?.ifBlank { p.full_name } ?: p.full_name,
-            cpf = editFields["cpf"]?.text?.toString()?.filter { it.isDigit() }?.ifBlank { null },
-            phone = editFields["phone"]?.text?.toString()?.trim()?.ifBlank { null },
-            birth_date = birthDateIso ?: p.birth_date,
-            state = stateSelected,
-            city = citySelected,
-            vehicle_manufacturer = finalBrand?.ifBlank { null },
-            vehicle_model = finalModel?.ifBlank { null },
-            vehicle_year = editFields["vehicle_year"]?.text?.toString()?.trim()?.toIntOrNull(),
-            vehicle_plate = editFields["vehicle_plate"]?.text?.toString()?.trim()?.uppercase()?.ifBlank { null },
-            vehicle_color = finalColor?.ifBlank { null },
-            vehicle_motor_type = motorFinal,
-            pix_type = pixTypeFinal,
-            pix_key = editFields["pix_key"]?.text?.toString()?.trim()?.ifBlank { null }
-        )
-
-        val progressBar = view.findViewById<ProgressBar>(R.id.progressBar)
-        progressBar.visibility = View.VISIBLE
-
-        viewLifecycleOwner.lifecycleScope.launch {
-            val result = supabase.updateProfile(updated)
-            progressBar.visibility = View.GONE
-            if (result.isSuccess) {
-                profile = updated
-                prefs.saveProfileJson(gson.toJson(updated))
-                editFields.clear()
-                editSpinners.clear()
-                view.findViewById<MaterialButton>(R.id.btnEditToggle).visibility = View.VISIBLE
-                view.findViewById<View>(R.id.editActionsRow).visibility = View.GONE
-                displayProfile(view)
-                Snackbar.make(view, "Dados atualizados com sucesso!", Snackbar.LENGTH_SHORT).show()
-            } else {
-                Snackbar.make(view, "Erro ao salvar: ${result.exceptionOrNull()?.message ?: ""}", Snackbar.LENGTH_LONG).show()
-            }
-        }
-    }
-
     private fun spinnerValue(spinner: Spinner?, vararg invalid: String): String? {
         val value = spinner?.selectedItem as? String ?: return null
         return if (invalid.contains(value)) null else value
@@ -668,7 +720,6 @@ class ProfileFragment : Fragment() {
         return trimmed.lowercase().replaceFirstChar { it.uppercase() }
     }
 
-    /** Máscara de dígitos (# = dígito) — usada em CPF, telefone e chave PIX. */
     private class SimpleMaskWatcher(private val editText: EditText, private val mask: String) : TextWatcher {
         private var isUpdating = false
         override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -689,7 +740,6 @@ class ProfileFragment : Fragment() {
         }
     }
 
-    /** Máscara da placa: maiúsculas + traço automático após as 3 letras (ABC-1234 ou ABC-1D23). */
     private class PlateWatcher(private val editText: EditText) : TextWatcher {
         private var isUpdating = false
         override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
