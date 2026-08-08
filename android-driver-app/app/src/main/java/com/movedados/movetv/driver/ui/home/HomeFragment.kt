@@ -29,14 +29,23 @@ import com.movedados.movetv.driver.R
 import com.movedados.movetv.driver.models.Campaign
 import com.movedados.movetv.driver.models.CampaignType
 import com.movedados.movetv.driver.models.Profile
+import com.movedados.movetv.driver.models.Invitation
+import com.movedados.movetv.driver.models.DriverSchedule
 import com.movedados.movetv.driver.network.SupabaseClient
 import com.movedados.movetv.driver.services.LocationService
 import com.movedados.movetv.driver.utils.PreferenceManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import androidx.activity.result.contract.ActivityResultContracts
+import java.io.ByteArrayOutputStream
 
 class HomeFragment : Fragment() {
 
@@ -47,6 +56,22 @@ class HomeFragment : Fragment() {
 
     private var campaignsJob: kotlinx.coroutines.Job? = null
     private var suppressSwitch = false
+
+    // Estado da foto de adesivação pendente (a foto pode vir de câmera OU galeria,
+    // então guardamos para qual campanha/agendamento ela se destina)
+    private var pendingAdhesionCampaignId: String? = null
+    private var pendingAdhesionScheduleId: String? = null
+    private var pendingAdhesionCallback: ((Bitmap) -> Unit)? = null
+
+    private val pickAdhesionImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let { loadAdhesionBitmapFromUri(it) }
+    }
+    private val takeAdhesionPictureLauncher = registerForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap: Bitmap? ->
+        bitmap?.let { pendingAdhesionCallback?.invoke(it) }
+    }
+    private val requestAdhesionCameraPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) takeAdhesionPictureLauncher.launch(null)
+    }
     private val handler = Handler(Looper.getMainLooper())
     private val ticker = object : Runnable {
         override fun run() {
@@ -432,6 +457,14 @@ class HomeFragment : Fragment() {
         }
         inner.addView(statusView)
 
+        // Convite / agendamento / envio de foto — sempre visível (não fica escondido em "Ver Detalhes"),
+        // porque é uma ação que o motorista pode precisar tomar.
+        val invitationContainer = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(12), 0, 0)
+        }
+        inner.addView(invitationContainer)
+
         // Ver detalhes (expande os tipos de mídia disponíveis + status de adesivação)
         val typesContainer = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
@@ -461,6 +494,12 @@ class HomeFragment : Fragment() {
         cardColumn.addView(inner)
         card.addView(cardColumn)
         container.addView(card)
+
+        // Convite/agendamento: busca o estado atual e monta a seção certa
+        viewLifecycleOwner.lifecycleScope.launch {
+            val driverId = profile?.id ?: prefs.getUserId() ?: return@launch
+            buildInvitationSection(invitationContainer, campaign.id, driverId)
+        }
 
         // Adesivação e tipos de mídia: ambos só aparecem ao abrir "Ver Detalhes"
         viewLifecycleOwner.lifecycleScope.launch {
@@ -515,6 +554,249 @@ class HomeFragment : Fragment() {
                 }
             }
         }
+    }
+
+    // ==================== CONVITE / AGENDAMENTO / FOTO DE ADESIVAÇÃO ====================
+
+    private suspend fun buildInvitationSection(container: LinearLayout, campaignId: String, driverId: String) {
+        val invitation = supabase.fetchInvitation(campaignId, driverId).getOrNull()
+
+        requireActivity().runOnUiThread { container.removeAllViews() }
+
+        if (invitation == null) {
+            // Sem convite registrado: nada a fazer aqui (o motorista foi adicionado à campanha,
+            // mas o convite formal ainda não foi criado do lado do painel).
+            return
+        }
+
+        when (invitation.status) {
+            "pending" -> requireActivity().runOnUiThread { showInvitationButtons(container, invitation.id) }
+            "rejected" -> requireActivity().runOnUiThread { showRejectedMessage(container) }
+            "accepted" -> {
+                val schedule = supabase.fetchLatestSchedule(campaignId, driverId).getOrNull()
+                val adhesion = supabase.fetchDriverAdhesion(campaignId, driverId).getOrNull()
+                requireActivity().runOnUiThread {
+                    when {
+                        schedule == null -> showSchedulePicker(container, campaignId, driverId, invitation.id)
+                        adhesion == null -> showSubmitPhotoButton(container, campaignId, driverId, schedule.id, schedule)
+                        else -> showScheduleSummary(container, schedule) // já agendou e já enviou foto
+                    }
+                }
+            }
+        }
+    }
+
+    private fun showInvitationButtons(container: LinearLayout, invitationId: String) {
+        val label = TextView(context).apply {
+            text = "Você foi convidado para esta campanha!"
+            setTextColor(getColor(R.color.text_primary))
+            textSize = 13f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setPadding(0, 0, 0, dp(8))
+        }
+        container.addView(label)
+
+        val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+        val btnReject = MaterialButton(requireContext()).apply {
+            text = "Recusar"
+            setBackgroundColor(getColor(R.color.card_bg_secondary))
+            setTextColor(getColor(R.color.text_primary))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(8) }
+        }
+        val btnAccept = MaterialButton(requireContext()).apply {
+            text = "Aceitar"
+            setBackgroundColor(getColor(R.color.success))
+            setTextColor(getColor(R.color.white))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(8) }
+        }
+        btnAccept.setOnClickListener { respondInvitation(container, invitationId, true) }
+        btnReject.setOnClickListener { respondInvitation(container, invitationId, false) }
+        row.addView(btnReject)
+        row.addView(btnAccept)
+        container.addView(row)
+    }
+
+    private fun respondInvitation(container: LinearLayout, invitationId: String, accepted: Boolean) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val result = supabase.respondToInvitation(invitationId, accepted)
+            if (result.isSuccess) {
+                if (accepted) {
+                    requireActivity().runOnUiThread { showSchedulePicker(container, "", "", invitationId, refreshAfterSave = true) }
+                    Toast.makeText(requireContext(), "Convite aceito!", Toast.LENGTH_SHORT).show()
+                } else {
+                    requireActivity().runOnUiThread { showRejectedMessage(container) }
+                    Toast.makeText(requireContext(), "Convite recusado", Toast.LENGTH_SHORT).show()
+                }
+                loadCampaigns(requireView()) // recarrega os cards para refletir o novo status certinho
+            } else {
+                Toast.makeText(requireContext(), "Erro: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun showRejectedMessage(container: LinearLayout) {
+        container.addView(TextView(context).apply {
+            text = "Você recusou este convite."
+            setTextColor(getColor(R.color.text_secondary))
+            textSize = 13f
+        })
+    }
+
+    private fun showSchedulePicker(
+        container: LinearLayout, campaignId: String, driverId: String, invitationId: String?,
+        refreshAfterSave: Boolean = false
+    ) {
+        var selectedDate: String? = null
+        var selectedTime: String? = null
+
+        val label = TextView(context).apply {
+            text = "Agende sua adesivação:"
+            setTextColor(getColor(R.color.text_primary))
+            textSize = 13f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setPadding(0, 0, 0, dp(8))
+        }
+        container.addView(label)
+
+        val tvChosen = TextView(context).apply {
+            text = "Nenhuma data selecionada"
+            setTextColor(getColor(R.color.text_secondary))
+            textSize = 13f
+            setPadding(0, 0, 0, dp(8))
+        }
+        container.addView(tvChosen)
+
+        val btnPick = MaterialButton(requireContext()).apply {
+            text = "Escolher data e horário"
+            setBackgroundColor(getColor(R.color.accent))
+            setTextColor(getColor(R.color.white))
+        }
+        val btnConfirm = MaterialButton(requireContext()).apply {
+            text = "Confirmar agendamento"
+            setBackgroundColor(getColor(R.color.success))
+            setTextColor(getColor(R.color.white))
+            isEnabled = false
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = dp(8)
+            }
+        }
+
+        btnPick.setOnClickListener {
+            val cal = Calendar.getInstance()
+            DatePickerDialog(requireContext(), { _, year, month, day ->
+                selectedDate = String.format(Locale.US, "%04d-%02d-%02d", year, month + 1, day)
+                TimePickerDialog(requireContext(), { _, hour, minute ->
+                    selectedTime = String.format(Locale.US, "%02d:%02d:00", hour, minute)
+                    tvChosen.text = "Selecionado: ${String.format("%02d/%02d/%04d", day, month + 1, year)} às ${String.format("%02d:%02d", hour, minute)}"
+                    btnConfirm.isEnabled = true
+                }, cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), true).show()
+            }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
+        }
+
+        btnConfirm.setOnClickListener {
+            val date = selectedDate; val time = selectedTime
+            if (date == null || time == null) return@setOnClickListener
+            val actualCampaignId = campaignId.ifBlank { return@setOnClickListener }
+            val actualDriverId = driverId.ifBlank { profile?.id ?: prefs.getUserId() ?: return@setOnClickListener }
+            viewLifecycleOwner.lifecycleScope.launch {
+                val result = supabase.createSchedule(actualCampaignId, actualDriverId, invitationId, date, time)
+                if (result.isSuccess) {
+                    Toast.makeText(requireContext(), "Adesivação agendada!", Toast.LENGTH_SHORT).show()
+                    loadCampaigns(requireView())
+                } else {
+                    Toast.makeText(requireContext(), "Erro ao agendar: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+
+        container.addView(btnPick)
+        container.addView(btnConfirm)
+    }
+
+    private fun showScheduleSummary(container: LinearLayout, schedule: DriverSchedule) {
+        container.addView(TextView(context).apply {
+            text = "Adesivação agendada e foto enviada — obrigado!"
+            setTextColor(getColor(R.color.success))
+            textSize = 13f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+        })
+    }
+
+    private fun showSubmitPhotoButton(container: LinearLayout, campaignId: String, driverId: String, scheduleId: String, schedule: DriverSchedule) {
+        container.addView(TextView(context).apply {
+            text = "Agendado para ${formatScheduleDate(schedule.scheduled_date)} às ${schedule.scheduled_time.take(5)}"
+            setTextColor(getColor(R.color.text_primary))
+            textSize = 13f
+            setPadding(0, 0, 0, dp(8))
+        })
+
+        val btnSendPhoto = MaterialButton(requireContext()).apply {
+            text = "Enviar foto da adesivação"
+            setBackgroundColor(getColor(R.color.accent))
+            setTextColor(getColor(R.color.white))
+        }
+        btnSendPhoto.setOnClickListener {
+            pendingAdhesionCampaignId = campaignId
+            pendingAdhesionScheduleId = scheduleId
+            pendingAdhesionCallback = { bitmap -> onAdhesionPhotoPicked(bitmap) }
+            val options = arrayOf("Tirar foto", "Escolher da galeria")
+            android.app.AlertDialog.Builder(requireContext())
+                .setTitle("Foto da Adesivação")
+                .setItems(options) { _, which ->
+                    when (which) {
+                        0 -> requestAdhesionCameraPermission.launch(android.Manifest.permission.CAMERA)
+                        1 -> pickAdhesionImageLauncher.launch("image/*")
+                    }
+                }
+                .show()
+        }
+        container.addView(btnSendPhoto)
+    }
+
+    private fun loadAdhesionBitmapFromUri(uri: Uri) {
+        try {
+            val stream = requireContext().contentResolver.openInputStream(uri)
+            val bitmap = BitmapFactory.decodeStream(stream)
+            stream?.close()
+            if (bitmap != null) onAdhesionPhotoPicked(bitmap)
+        } catch (e: Exception) {
+            Toast.makeText(requireContext(), "Não foi possível carregar a imagem", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun onAdhesionPhotoPicked(bitmap: Bitmap) {
+        val campaignId = pendingAdhesionCampaignId ?: return
+        val scheduleId = pendingAdhesionScheduleId
+        val driverId = profile?.id ?: prefs.getUserId() ?: return
+
+        Toast.makeText(requireContext(), "Enviando foto...", Toast.LENGTH_SHORT).show()
+        viewLifecycleOwner.lifecycleScope.launch {
+            val jpegBytes = withContext(Dispatchers.Default) {
+                val stream = ByteArrayOutputStream()
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 80, stream)
+                stream.toByteArray()
+            }
+            val uploadResult = supabase.uploadAdhesionPhoto(campaignId, driverId, jpegBytes)
+            val photoUrl = uploadResult.getOrNull()
+            if (photoUrl == null) {
+                Toast.makeText(requireContext(), "Erro ao enviar foto: ${uploadResult.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                return@launch
+            }
+            val recordResult = supabase.insertAdhesionRecord(campaignId, driverId, photoUrl, scheduleId)
+            if (recordResult.isSuccess) {
+                Toast.makeText(requireContext(), "Adesivação registrada com sucesso!", Toast.LENGTH_LONG).show()
+                loadCampaigns(requireView())
+            } else {
+                Toast.makeText(requireContext(), "Erro ao registrar: ${recordResult.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun formatScheduleDate(iso: String): String {
+        return try {
+            val parts = iso.split("-")
+            "${parts[2]}/${parts[1]}/${parts[0]}"
+        } catch (e: Exception) { iso }
     }
 
     private fun addTypeRow(container: LinearLayout, type: CampaignType) {
