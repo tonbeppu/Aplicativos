@@ -427,6 +427,135 @@ class SupabaseClient(context: Context) {
         }
     }
 
+    // ==================== CONVITE DE CAMPANHA ====================
+
+    suspend fun fetchInvitation(campaignId: String, driverId: String): Result<Invitation?> = withContext(Dispatchers.IO) {
+        try {
+            val response = executeAuthed {
+                authRequestBuilder(
+                    "/rest/v1/campaign_driver_invitations?campaign_id=eq.$campaignId&driver_id=eq.$driverId&select=id,status,invited_at,responded_at&limit=1",
+                    "GET"
+                ).build()
+            }
+            val body = response.body?.string() ?: "[]"
+            val listType = object : TypeToken<List<Invitation>>() {}.type
+            val rows: List<Invitation> = gson.fromJson(body, listType)
+            Result.success(rows.firstOrNull())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun respondToInvitation(invitationId: String, accepted: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val json = JsonObject().apply {
+                addProperty("status", if (accepted) "accepted" else "rejected")
+                addProperty("responded_at", utcNow())
+            }
+            val response = executeAuthed {
+                authRequestBuilder("/rest/v1/campaign_driver_invitations?id=eq.$invitationId", "PATCH")
+                    .patch(json.toString().toRequestBody(jsonMediaType))
+                    .addHeader("Prefer", "return=minimal")
+                    .build()
+            }
+            if (response.isSuccessful) Result.success(Unit)
+            else Result.failure(Exception("Erro ao responder convite (HTTP ${response.code})"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ==================== AGENDAMENTO DE ADESIVAÇÃO ====================
+
+    suspend fun fetchLatestSchedule(campaignId: String, driverId: String): Result<DriverSchedule?> = withContext(Dispatchers.IO) {
+        try {
+            val response = executeAuthed {
+                authRequestBuilder(
+                    "/rest/v1/campaign_driver_schedules?campaign_id=eq.$campaignId&driver_id=eq.$driverId&select=id,scheduled_date,scheduled_time&order=created_at.desc&limit=1",
+                    "GET"
+                ).build()
+            }
+            val body = response.body?.string() ?: "[]"
+            val listType = object : TypeToken<List<DriverSchedule>>() {}.type
+            val rows: List<DriverSchedule> = gson.fromJson(body, listType)
+            Result.success(rows.firstOrNull())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createSchedule(campaignId: String, driverId: String, invitationId: String?, date: String, time: String): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val json = JsonObject().apply {
+                addProperty("campaign_id", campaignId)
+                addProperty("driver_id", driverId)
+                invitationId?.let { addProperty("invitation_id", it) }
+                addProperty("scheduled_date", date)
+                addProperty("scheduled_time", time)
+            }
+            val response = executeAuthed {
+                authRequestBuilder("/rest/v1/campaign_driver_schedules", "POST")
+                    .post(json.toString().toRequestBody(jsonMediaType))
+                    .addHeader("Prefer", "return=representation")
+                    .build()
+            }
+            val body = response.body?.string() ?: "[]"
+            if (response.isSuccessful) {
+                val listType = object : TypeToken<List<JsonObject>>() {}.type
+                val rows: List<JsonObject> = gson.fromJson(body, listType)
+                val id = rows.firstOrNull()?.get("id")?.asString
+                if (id != null) Result.success(id) else Result.failure(Exception("Agendamento criado, mas sem ID retornado"))
+            } else {
+                Result.failure(Exception("Erro ao agendar (HTTP ${response.code}): $body"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ==================== ENVIO DA FOTO DE ADESIVAÇÃO ====================
+
+    suspend fun uploadAdhesionPhoto(campaignId: String, driverId: String, jpegBytes: ByteArray): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val fileName = "${campaignId}_${driverId}_${System.currentTimeMillis()}.jpg"
+            val response = executeAuthed {
+                authRequestBuilder("/storage/v1/object/adhesion-photos/$fileName", "POST")
+                    .post(jpegBytes.toRequestBody("image/jpeg".toMediaType()))
+                    .addHeader("x-upsert", "true")
+                    .build()
+            }
+            if (response.isSuccessful) {
+                val publicUrl = "$BASE_URL/storage/v1/object/public/adhesion-photos/$fileName"
+                Result.success(publicUrl)
+            } else {
+                Result.failure(Exception("Erro ao enviar foto (HTTP ${response.code})"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun insertAdhesionRecord(campaignId: String, driverId: String, photoUrl: String, scheduleId: String?): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val json = JsonObject().apply {
+                addProperty("campaign_id", campaignId)
+                addProperty("driver_id", driverId)
+                addProperty("photo_url", photoUrl)
+                scheduleId?.let { addProperty("schedule_id", it) }
+            }
+            val response = executeAuthed {
+                authRequestBuilder("/rest/v1/campaign_driver_adhesions", "POST")
+                    .post(json.toString().toRequestBody(jsonMediaType))
+                    .addHeader("Prefer", "return=minimal")
+                    .build()
+            }
+            if (response.isSuccessful) Result.success(Unit)
+            else Result.failure(Exception("Erro ao registrar adesivação (HTTP ${response.code})"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun fetchDriverAdhesion(campaignId: String, driverId: String): Result<DriverAdhesion?> = withContext(Dispatchers.IO) {
         try {
             val response = executeAuthed {
