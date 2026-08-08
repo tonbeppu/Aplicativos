@@ -54,6 +54,11 @@ data class Campaign(
     val driver_payment_value: Double? = null,
     val image_url: String? = null,
     val adhesion_end_date: String? = null
+    val adhesion_start_date: String? = null,
+    val adhesion_start_time: String? = null,
+    val adhesion_end_time: String? = null,
+    val adhesion_pause_start_time: String? = null,
+    val adhesion_pause_end_time: String? = null,
 )
 
 data class DriverAdhesion(
