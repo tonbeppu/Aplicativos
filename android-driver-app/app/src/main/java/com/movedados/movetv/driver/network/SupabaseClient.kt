@@ -540,7 +540,8 @@ class SupabaseClient(context: Context) {
                 Result.success(publicUrl)
             } else {
                 val errorBody = try { response.body?.string() } catch (e: Exception) { null }
-                Result.failure(Exception("Erro ao enviar foto (HTTP ${response.code}): ${errorBody?.take(300) ?: ""}"))
+                // Mostra o caminho exato tentado — para comparar diretamente com o que o banco espera
+                Result.failure(Exception("Erro (HTTP ${response.code})\nCaminho enviado: $filePath\nResposta: ${errorBody?.take(300) ?: ""}"))
             }
         } catch (e: Exception) {
             Result.failure(e)
