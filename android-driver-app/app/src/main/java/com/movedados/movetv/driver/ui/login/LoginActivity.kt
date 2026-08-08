@@ -47,10 +47,10 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun setTwoToneTitle() {
-        val text = "MoveDados"
+        val text = "move dados"
         val spannable = SpannableString(text)
-        spannable.setSpan(ForegroundColorSpan(Color.WHITE), 0, 4, 0)
-        spannable.setSpan(ForegroundColorSpan(getColor(R.color.accent)), 4, text.length, 0)
+        spannable.setSpan(ForegroundColorSpan(Color.WHITE), 0, 5, 0)
+        spannable.setSpan(ForegroundColorSpan(getColor(R.color.accent)), 5, text.length, 0)
         binding.tvAppName.text = spannable
     }
 
