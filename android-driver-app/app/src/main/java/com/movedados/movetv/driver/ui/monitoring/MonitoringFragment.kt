@@ -39,8 +39,8 @@ class MonitoringFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        view.findViewById<MaterialButton>(R.id.btnWhatsapp).setOnClickListener { openWhatsapp() }
-        view.findViewById<MaterialButton>(R.id.btnIndicar).setOnClickListener { showReferralDialog() }
+        view.findViewById<View>(R.id.btnWhatsapp).setOnClickListener { openWhatsapp() }
+        view.findViewById<View>(R.id.btnIndicar).setOnClickListener { showReferralDialog() }
     }
 
     private fun openWhatsapp() {
