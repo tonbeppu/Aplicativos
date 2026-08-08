@@ -409,7 +409,7 @@ class SupabaseClient(context: Context) {
         try {
             val response = executeAuthed {
                 authRequestBuilder(
-                    "/rest/v1/campaign_drivers?driver_id=eq.$driverId&select=campaigns(id,name,status,start_date,end_date,campaign_type,driver_payment_value,image_url,adhesion_end_date)",
+                    "/rest/v1/campaign_drivers?driver_id=eq.$driverId&select=campaigns(id,name,status,start_date,end_date,campaign_type,driver_payment_value,image_url,adhesion_start_date,adhesion_end_date,adhesion_start_time,adhesion_end_time,adhesion_pause_start_time,adhesion_pause_end_time)",
                     "GET"
                 ).build()
             }
