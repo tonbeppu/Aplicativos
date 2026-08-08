@@ -498,7 +498,7 @@ class HomeFragment : Fragment() {
         // Convite/agendamento: busca o estado atual e monta a seção certa
         viewLifecycleOwner.lifecycleScope.launch {
             val driverId = profile?.id ?: prefs.getUserId() ?: return@launch
-            buildInvitationSection(invitationContainer, campaign.id, driverId)
+            buildInvitationSection(invitationContainer, campaign.id, driverId, campaign)
         }
 
         // Adesivação e tipos de mídia: ambos só aparecem ao abrir "Ver Detalhes"
@@ -558,7 +558,7 @@ class HomeFragment : Fragment() {
 
     // ==================== CONVITE / AGENDAMENTO / FOTO DE ADESIVAÇÃO ====================
 
-    private suspend fun buildInvitationSection(container: LinearLayout, campaignId: String, driverId: String) {
+    private suspend fun buildInvitationSection(container: LinearLayout, campaignId: String, driverId: String, campaign: Campaign) {
         val invitation = supabase.fetchInvitation(campaignId, driverId).getOrNull()
 
         requireActivity().runOnUiThread { container.removeAllViews() }
@@ -570,14 +570,14 @@ class HomeFragment : Fragment() {
         }
 
         when (invitation.status) {
-            "pending" -> requireActivity().runOnUiThread { showInvitationButtons(container, invitation.id) }
+            "pending" -> requireActivity().runOnUiThread { showInvitationButtons(container, invitation.id, campaign) }
             "rejected" -> requireActivity().runOnUiThread { showRejectedMessage(container) }
             "accepted" -> {
                 val schedule = supabase.fetchLatestSchedule(campaignId, driverId).getOrNull()
                 val adhesion = supabase.fetchDriverAdhesion(campaignId, driverId).getOrNull()
                 requireActivity().runOnUiThread {
                     when {
-                        schedule == null -> showSchedulePicker(container, campaignId, driverId, invitation.id)
+                        schedule == null -> showSchedulePicker(container, campaignId, driverId, invitation.id, campaign = campaign)
                         adhesion == null -> showSubmitPhotoButton(container, campaignId, driverId, schedule.id, schedule)
                         else -> showScheduleSummary(container, schedule) // já agendou e já enviou foto
                     }
@@ -586,7 +586,7 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun showInvitationButtons(container: LinearLayout, invitationId: String) {
+    private fun showInvitationButtons(container: LinearLayout, invitationId: String, campaign: Campaign) {
         val label = TextView(context).apply {
             text = "Você foi convidado para esta campanha!"
             setTextColor(getColor(R.color.text_primary))
@@ -609,19 +609,19 @@ class HomeFragment : Fragment() {
             setTextColor(getColor(R.color.white))
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(8) }
         }
-        btnAccept.setOnClickListener { respondInvitation(container, invitationId, true) }
-        btnReject.setOnClickListener { respondInvitation(container, invitationId, false) }
+        btnAccept.setOnClickListener { respondInvitation(container, invitationId, true, campaign) }
+        btnReject.setOnClickListener { respondInvitation(container, invitationId, false, campaign) }
         row.addView(btnReject)
         row.addView(btnAccept)
         container.addView(row)
     }
 
-    private fun respondInvitation(container: LinearLayout, invitationId: String, accepted: Boolean) {
+    private fun respondInvitation(container: LinearLayout, invitationId: String, accepted: Boolean, campaign: Campaign) {
         viewLifecycleOwner.lifecycleScope.launch {
             val result = supabase.respondToInvitation(invitationId, accepted)
             if (result.isSuccess) {
                 if (accepted) {
-                    requireActivity().runOnUiThread { showSchedulePicker(container, "", "", invitationId, refreshAfterSave = true) }
+                    requireActivity().runOnUiThread { showSchedulePicker(container, campaign.id, profile?.id ?: prefs.getUserId() ?: "", invitationId, refreshAfterSave = true, campaign = campaign) }
                     Toast.makeText(requireContext(), "Convite aceito!", Toast.LENGTH_SHORT).show()
                 } else {
                     requireActivity().runOnUiThread { showRejectedMessage(container) }
@@ -644,7 +644,7 @@ class HomeFragment : Fragment() {
 
     private fun showSchedulePicker(
         container: LinearLayout, campaignId: String, driverId: String, invitationId: String?,
-        refreshAfterSave: Boolean = false
+        refreshAfterSave: Boolean = false, campaign: Campaign? = null
     ) {
         var selectedDate: String? = null
         var selectedTime: String? = null
@@ -658,6 +658,26 @@ class HomeFragment : Fragment() {
         }
         container.addView(label)
 
+        // Mostra a janela permitida, se a campanha definiu uma
+        val startDateStr = campaign?.adhesion_start_date
+        val endDateStr = campaign?.adhesion_end_date
+        val startTimeStr = campaign?.adhesion_start_time
+        val endTimeStr = campaign?.adhesion_end_time
+        if (startDateStr != null && endDateStr != null) {
+            container.addView(TextView(context).apply {
+                val windowText = if (startDateStr == endDateStr) {
+                    "Disponível em ${formatScheduleDate(startDateStr)}" +
+                        if (startTimeStr != null && endTimeStr != null) ", das ${startTimeStr.take(5)} às ${endTimeStr.take(5)}" else ""
+                } else {
+                    "Disponível de ${formatScheduleDate(startDateStr)} a ${formatScheduleDate(endDateStr)}"
+                }
+                text = windowText
+                setTextColor(getColor(R.color.text_secondary))
+                textSize = 12f
+                setPadding(0, 0, 0, dp(8))
+            })
+        }
+
         val tvChosen = TextView(context).apply {
             text = "Nenhuma data selecionada"
             setTextColor(getColor(R.color.text_secondary))
@@ -666,10 +686,19 @@ class HomeFragment : Fragment() {
         }
         container.addView(tvChosen)
 
-        val btnPick = MaterialButton(requireContext()).apply {
-            text = "Escolher data e horário"
+        val btnPickDate = MaterialButton(requireContext()).apply {
+            text = "1. Escolher data"
             setBackgroundColor(getColor(R.color.accent))
             setTextColor(getColor(R.color.white))
+        }
+        val btnPickTime = MaterialButton(requireContext()).apply {
+            text = "2. Escolher horário"
+            setBackgroundColor(getColor(R.color.card_bg_secondary))
+            setTextColor(getColor(R.color.text_primary))
+            isEnabled = false
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = dp(8)
+            }
         }
         val btnConfirm = MaterialButton(requireContext()).apply {
             text = "Confirmar agendamento"
@@ -681,16 +710,37 @@ class HomeFragment : Fragment() {
             }
         }
 
-        btnPick.setOnClickListener {
+        btnPickDate.setOnClickListener {
             val cal = Calendar.getInstance()
-            DatePickerDialog(requireContext(), { _, year, month, day ->
+            val dialog = DatePickerDialog(requireContext(), { _, year, month, day ->
                 selectedDate = String.format(Locale.US, "%04d-%02d-%02d", year, month + 1, day)
-                TimePickerDialog(requireContext(), { _, hour, minute ->
-                    selectedTime = String.format(Locale.US, "%02d:%02d:00", hour, minute)
-                    tvChosen.text = "Selecionado: ${String.format("%02d/%02d/%04d", day, month + 1, year)} às ${String.format("%02d:%02d", hour, minute)}"
+                tvChosen.text = "Data: ${String.format("%02d/%02d/%04d", day, month + 1, year)} — agora escolha o horário"
+                selectedTime = null
+                btnConfirm.isEnabled = false
+                btnPickTime.isEnabled = true
+            }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH))
+
+            // Restringe o calendário à janela permitida pela campanha (se definida)
+            parseIsoDateToMillis(startDateStr)?.let { dialog.datePicker.minDate = it }
+            parseIsoDateToMillis(endDateStr)?.let { dialog.datePicker.maxDate = it }
+            dialog.show()
+        }
+
+        btnPickTime.setOnClickListener {
+            val slots = generateTimeSlots(startTimeStr, endTimeStr, campaign?.adhesion_pause_start_time, campaign?.adhesion_pause_end_time)
+            if (slots.isEmpty()) {
+                Toast.makeText(requireContext(), "Nenhum horário disponível para esta campanha", Toast.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+            android.app.AlertDialog.Builder(requireContext())
+                .setTitle("Escolha o horário")
+                .setItems(slots.toTypedArray()) { _, which ->
+                    val time = slots[which]
+                    selectedTime = "$time:00"
+                    tvChosen.text = "Selecionado: ${tvChosen.text.toString().substringBefore(" —")} às $time"
                     btnConfirm.isEnabled = true
-                }, cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), true).show()
-            }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
+                }
+                .show()
         }
 
         btnConfirm.setOnClickListener {
@@ -709,8 +759,50 @@ class HomeFragment : Fragment() {
             }
         }
 
-        container.addView(btnPick)
+        container.addView(btnPickDate)
+        container.addView(btnPickTime)
         container.addView(btnConfirm)
+    }
+
+    /** Converte "yyyy-MM-dd" para milissegundos, para uso em DatePicker.minDate/maxDate. */
+    private fun parseIsoDateToMillis(iso: String?): Long? {
+        if (iso.isNullOrBlank()) return null
+        return try {
+            val parts = iso.split("-")
+            Calendar.getInstance().apply {
+                set(parts[0].toInt(), parts[1].toInt() - 1, parts[2].toInt(), 0, 0, 0)
+                set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
+        } catch (e: Exception) { null }
+    }
+
+    /** Gera os horários disponíveis (de 30 em 30 min) entre início e fim da janela de
+     *  adesivação, removendo o intervalo de pausa se a campanha tiver um definido. */
+    private fun generateTimeSlots(startTime: String?, endTime: String?, pauseStart: String?, pauseEnd: String?): List<String> {
+        if (startTime.isNullOrBlank() || endTime.isNullOrBlank()) return emptyList()
+        val start = timeStringToMinutes(startTime) ?: return emptyList()
+        val end = timeStringToMinutes(endTime) ?: return emptyList()
+        val pauseStartMin = timeStringToMinutes(pauseStart)
+        val pauseEndMin = timeStringToMinutes(pauseEnd)
+
+        val slots = mutableListOf<String>()
+        var current = start
+        while (current <= end) {
+            val insidePause = pauseStartMin != null && pauseEndMin != null && current >= pauseStartMin && current < pauseEndMin
+            if (!insidePause) {
+                slots.add(String.format(Locale.US, "%02d:%02d", current / 60, current % 60))
+            }
+            current += 30
+        }
+        return slots
+    }
+
+    private fun timeStringToMinutes(time: String?): Int? {
+        if (time.isNullOrBlank()) return null
+        return try {
+            val parts = time.take(5).split(":")
+            parts[0].toInt() * 60 + parts[1].toInt()
+        } catch (e: Exception) { null }
     }
 
     private fun showScheduleSummary(container: LinearLayout, schedule: DriverSchedule) {
