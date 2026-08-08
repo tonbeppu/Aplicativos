@@ -1,5 +1,18 @@
 package com.movedados.movetv.driver.models
 
+data class Invitation(
+    val id: String = "",
+    val status: String = "pending",
+    val invited_at: String? = null,
+    val responded_at: String? = null
+)
+
+data class DriverSchedule(
+    val id: String = "",
+    val scheduled_date: String = "",
+    val scheduled_time: String = ""
+)
+
 data class QueuedGpsPoint(
     val latitude: Double,
     val longitude: Double,
