@@ -515,6 +515,20 @@ class SupabaseClient(context: Context) {
 
     // ==================== ENVIO DA FOTO DE ADESIVAÇÃO ====================
 
+    /** Decodifica o token (sem validar assinatura, só para diagnóstico) e extrai o "sub" —
+     *  é o ID que o banco realmente vai usar como auth.uid() ao processar a requisição. */
+    private fun decodeJwtSubject(token: String): String? {
+        return try {
+            val parts = token.split(".")
+            if (parts.size < 2) return null
+            val payload = android.util.Base64.decode(parts[1], android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING or android.util.Base64.NO_WRAP)
+            val json = gson.fromJson(String(payload), JsonObject::class.java)
+            json.get("sub")?.asString
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     suspend fun uploadAdhesionPhoto(campaignId: String, driverId: String, jpegBytes: ByteArray): Result<String> = withContext(Dispatchers.IO) {
         try {
             // A política de segurança (RLS) exige que a PRIMEIRA pasta do caminho seja o ID
@@ -540,8 +554,16 @@ class SupabaseClient(context: Context) {
                 Result.success(publicUrl)
             } else {
                 val errorBody = try { response.body?.string() } catch (e: Exception) { null }
-                // Mostra o caminho exato tentado — para comparar diretamente com o que o banco espera
-                Result.failure(Exception("Erro (HTTP ${response.code})\nCaminho enviado: $filePath\nResposta: ${errorBody?.take(300) ?: ""}"))
+                val tokenSubject = decodeJwtSubject(prefs.getAccessToken() ?: "")
+                // Mostra o caminho exato tentado E o "dono" real do token — para comparar
+                // diretamente com o que o banco espera (prova definitiva de qual é o problema)
+                Result.failure(Exception(
+                    "Erro (HTTP ${response.code})\n" +
+                    "Caminho enviado: $filePath\n" +
+                    "driverId usado no caminho: $driverId\n" +
+                    "Dono real do token (sub): $tokenSubject\n" +
+                    "Resposta: ${errorBody?.take(300) ?: ""}"
+                ))
             }
         } catch (e: Exception) {
             Result.failure(e)
