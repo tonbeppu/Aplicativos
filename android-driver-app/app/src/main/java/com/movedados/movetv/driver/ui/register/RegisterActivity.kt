@@ -257,8 +257,10 @@ class RegisterActivity : AppCompatActivity() {
             ?: return showError("Informe uma data de nascimento válida (DD/MM/AAAA)")
         if (phone.filter { it.isDigit() }.length < 10) return showError("Informe um telefone válido")
 
-        val state = spinnerValueOrNull(spState, "Selecione")
+        // O sistema espera só a sigla (ex: MG), não o texto completo do menu (MG - Minas Gerais)
+        val stateFull = spinnerValueOrNull(spState, "Selecione")
             ?: return showError("Selecione o estado")
+        val state = stateFull.substringBefore(" - ")
         val city = spinnerValueOrNull(spCity, "Selecione", "Carregando...", "Erro ao carregar cidades", "Selecione o estado primeiro")
             ?: return showError("Selecione a cidade")
 
