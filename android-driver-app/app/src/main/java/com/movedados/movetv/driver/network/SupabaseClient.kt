@@ -518,12 +518,12 @@ class SupabaseClient(context: Context) {
     suspend fun uploadAdhesionPhoto(campaignId: String, driverId: String, jpegBytes: ByteArray): Result<String> = withContext(Dispatchers.IO) {
         try {
             val accessToken = prefs.getAccessToken() ?: return@withContext Result.failure(Exception("Sessão expirada, faça login novamente"))
-            val fileName = "${campaignId}_${driverId}_${System.currentTimeMillis()}.jpg"
+            // A política de segurança (RLS) exige que a PRIMEIRA pasta do caminho seja o ID
+            // do motorista — sem isso, o upload é recusado (foi a causa real do erro 400).
+            val filePath = "$driverId/${campaignId}_${System.currentTimeMillis()}.jpg"
             val body = jpegBytes.toRequestBody("image/jpeg".toMediaType())
-            // Requisição "crua" (sem passar por authRequestBuilder), igual ao uploadProfilePhoto —
-            // evita o conflito de dois cabeçalhos Content-Type que causava o erro 400.
             val request = Request.Builder()
-                .url("$BASE_URL/storage/v1/object/adhesion-photos/$fileName")
+                .url("$BASE_URL/storage/v1/object/adhesion-photos/$filePath")
                 .post(body)
                 .addHeader("apikey", ANON_KEY)
                 .addHeader("Authorization", "Bearer $accessToken")
@@ -533,7 +533,7 @@ class SupabaseClient(context: Context) {
 
             val response = client.newCall(request).execute()
             if (response.isSuccessful) {
-                val publicUrl = "$BASE_URL/storage/v1/object/public/adhesion-photos/$fileName"
+                val publicUrl = "$BASE_URL/storage/v1/object/public/adhesion-photos/$filePath"
                 Result.success(publicUrl)
             } else {
                 val errorBody = try { response.body?.string() } catch (e: Exception) { null }
