@@ -53,7 +53,7 @@ data class Campaign(
     val campaign_type: String? = null,
     val driver_payment_value: Double? = null,
     val image_url: String? = null,
-    val adhesion_end_date: String? = null
+    val adhesion_end_date: String? = null,
     val adhesion_start_date: String? = null,
     val adhesion_start_time: String? = null,
     val adhesion_end_time: String? = null,
