@@ -539,6 +539,10 @@ class SupabaseClient(context: Context) {
             // Usa executeAuthed (com renovação automática de token se estiver vencido) —
             // um token vencido faz o auth.uid() do banco ficar nulo, e a política de segurança
             // recusa o upload com a mesma aparência de "caminho errado", mesmo estando certo.
+            // Removido o header x-upsert: como cada foto já tem nome único (com timestamp),
+            // nunca existe conflito de arquivo — e o upsert exigia uma política de LEITURA no
+            // bucket (para checar se o arquivo já existia) que não estava configurada, causando
+            // o erro de RLS mesmo com a política de escrita correta.
             val response = executeAuthed {
                 Request.Builder()
                     .url("$BASE_URL/storage/v1/object/adhesion-photos/$filePath")
@@ -546,7 +550,6 @@ class SupabaseClient(context: Context) {
                     .addHeader("apikey", ANON_KEY)
                     .addHeader("Authorization", "Bearer ${prefs.getAccessToken() ?: ""}")
                     .addHeader("Content-Type", "image/jpeg")
-                    .addHeader("x-upsert", "true")
                     .build()
             }
             if (response.isSuccessful) {
