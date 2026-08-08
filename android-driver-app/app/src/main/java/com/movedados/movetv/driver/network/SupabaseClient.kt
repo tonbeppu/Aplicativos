@@ -275,6 +275,8 @@ class SupabaseClient(context: Context) {
         }
     }
 
+    // Dados de veículo e PIX agora são opcionais no cadastro — o motorista completa
+    // depois pela aba Perfil. Por isso todos esses parâmetros aceitam null.
     suspend fun registerDriverProfile(
         userId: String,
         email: String,
@@ -284,14 +286,14 @@ class SupabaseClient(context: Context) {
         birthDate: String,
         city: String,
         state: String,
-        vehicleManufacturer: String,
-        vehicleModel: String,
-        vehicleYear: Int?,
-        vehiclePlate: String,
-        vehicleColor: String,
-        vehicleMotorType: String,
-        pixType: String,
-        pixKey: String,
+        vehicleManufacturer: String? = null,
+        vehicleModel: String? = null,
+        vehicleYear: Int? = null,
+        vehiclePlate: String? = null,
+        vehicleColor: String? = null,
+        vehicleMotorType: String? = null,
+        pixType: String? = null,
+        pixKey: String? = null,
         profilePhotoUrl: String? = null
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
@@ -306,14 +308,14 @@ class SupabaseClient(context: Context) {
                 addProperty("birth_date", birthDate)
                 addProperty("city", city)
                 addProperty("state", state)
-                addProperty("vehicle_manufacturer", vehicleManufacturer)
-                addProperty("vehicle_model", vehicleModel)
+                vehicleManufacturer?.let { addProperty("vehicle_manufacturer", it) }
+                vehicleModel?.let { addProperty("vehicle_model", it) }
                 vehicleYear?.let { addProperty("vehicle_year", it) }
-                addProperty("vehicle_plate", vehiclePlate)
-                addProperty("vehicle_color", vehicleColor)
-                addProperty("vehicle_motor_type", vehicleMotorType)
-                addProperty("pix_type", pixType)
-                addProperty("pix_key", pixKey)
+                vehiclePlate?.let { addProperty("vehicle_plate", it) }
+                vehicleColor?.let { addProperty("vehicle_color", it) }
+                vehicleMotorType?.let { addProperty("vehicle_motor_type", it) }
+                pixType?.let { addProperty("pix_type", it) }
+                pixKey?.let { addProperty("pix_key", it) }
             }
 
             // Upsert: funciona tanto se um trigger do banco já criou a linha do perfil
