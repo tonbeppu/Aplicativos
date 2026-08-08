@@ -12,7 +12,7 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
-        <!-- Card: Fale com a MoveDados -->
+        <!-- Card: Fale com a move dados -->
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -31,7 +31,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Fale com a MoveDados"
+                    android:text="move dados"
                     android:textColor="@color/text_primary"
                     android:textSize="20sp"
                     android:textStyle="bold" />
@@ -39,38 +39,97 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Em caso de dúvidas, chame nosso atendimento."
+                    android:text="Em caso de dúvidas, chame nosso atendimento ou indique um motorista."
                     android:textColor="@color/text_secondary"
                     android:textSize="14sp"
                     android:gravity="center"
                     android:layout_marginTop="8dp"
-                    android:layout_marginBottom="20dp" />
+                    android:layout_marginBottom="24dp" />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnWhatsapp"
+                <!-- Os dois botões, lado a lado, no estilo "cartão" moderno -->
+                <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="56dp"
-                    android:text="Falar no WhatsApp"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    app:icon="@android:drawable/ic_menu_call"
-                    app:backgroundTint="#25D366"
-                    app:cornerRadius="12dp" />
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <!-- Falar com a move dados (WhatsApp) -->
+                    <LinearLayout
+                        android:id="@+id/btnWhatsapp"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:background="@drawable/bg_action_card_whatsapp"
+                        android:padding="18dp"
+                        android:layout_marginEnd="8dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:foreground="?attr/selectableItemBackground">
+
+                        <FrameLayout
+                            android:layout_width="52dp"
+                            android:layout_height="52dp"
+                            android:background="@drawable/bg_action_icon_circle_whatsapp">
+                            <ImageView
+                                android:layout_width="26dp"
+                                android:layout_height="26dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_chat" />
+                        </FrameLayout>
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Falar com a move dados"
+                            android:textColor="@color/text_primary"
+                            android:textSize="13sp"
+                            android:textStyle="bold"
+                            android:gravity="center"
+                            android:layout_marginTop="10dp" />
+                    </LinearLayout>
+
+                    <!-- Indique um motorista -->
+                    <LinearLayout
+                        android:id="@+id/btnIndicar"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:background="@drawable/bg_action_card_referral"
+                        android:padding="18dp"
+                        android:layout_marginStart="8dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:foreground="?attr/selectableItemBackground">
+
+                        <FrameLayout
+                            android:layout_width="52dp"
+                            android:layout_height="52dp"
+                            android:background="@drawable/bg_action_icon_circle_referral">
+                            <ImageView
+                                android:layout_width="26dp"
+                                android:layout_height="26dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_friends" />
+                        </FrameLayout>
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Indique um motorista"
+                            android:textColor="@color/text_primary"
+                            android:textSize="13sp"
+                            android:textStyle="bold"
+                            android:gravity="center"
+                            android:layout_marginTop="10dp" />
+                    </LinearLayout>
+
+                </LinearLayout>
 
             </LinearLayout>
         </androidx.cardview.widget.CardView>
-
-        <!-- Botão: Indique um motorista -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnIndicar"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:text="Indique um motorista"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            app:backgroundTint="@color/accent"
-            app:cornerRadius="12dp"
-            android:layout_marginTop="16dp" />
 
     </LinearLayout>
 </ScrollView>
